@@ -545,7 +545,14 @@ void Net::get_tree_decomp_bags(bool print_bags) {
         bag.push_back(get_node(n->_name)); // node in this graph
         sort(bag_copy.begin(), bag_copy.end(), [](const Node* a, const Node* b) -> bool{return a->_id < b->_id;});
         sort(bag.begin(), bag.end(), [](const Node* a, const Node* b) -> bool{return a->_id < b->_id;});
-
+        DebugOn("new bag indices = { ");
+        for (unsigned i = 0; i < bag.size(); i++){
+            DebugOn(bag[i]->_id);
+            if (i!=bag.size()-1) {
+                DebugOn(", ");
+            }
+        }
+        DebugOn("}\n");
         // update clone_graph and construct chordal extension.
         for (int i = 0; i < bag_copy.size(); i++) {
             u = bag_copy.at(i);

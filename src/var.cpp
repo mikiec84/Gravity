@@ -388,7 +388,7 @@ template<typename type> void sdpvar<type>::print(bool vals) const {
     param<type>::print(vals);
 };
 
-template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size){
+template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size, bool index_bags){
     vector<var> res;
     string key;
     res.resize(size);
@@ -408,8 +408,11 @@ template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, 
         res[i]._indices = this->_indices;
     }
     set<vector<unsigned>> ids;
+    unsigned bag_id = 0;
     for (auto &bag: bags) {
+        
         if (bag.size() != size) {
+            bag_id++;
             continue;
         }
         vector<unsigned> ids_bag;
@@ -424,10 +427,20 @@ template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, 
         }
         for (int i = 0; i< size-1; i++) {
             if(net.get_directed_arc(bag[i]->_name, bag[i+1]->_name)!=nullptr) {
-                key = bag[i]->_name + "," + bag[i+1]->_name;
+                if (index_bags) {
+                    key = to_string(bag_id)+"_"+bag[i]->_name + "," + bag[i+1]->_name;
+                }
+                else {
+                    key = bag[i]->_name + "," + bag[i+1]->_name;
+                }
             }
             else {
-                key = bag[i+1]->_name + "," + bag[i]->_name;
+                if (index_bags) {
+                    key = to_string(bag_id)+"_"+bag[i+1]->_name + "," + bag[i]->_name;
+                }
+                else {
+                    key = bag[i+1]->_name + "," + bag[i]->_name;
+                }
             }
             auto index = param_::_indices->size();
             auto pp = param_::_indices->insert(make_pair<>(key,index));
@@ -437,6 +450,7 @@ template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, 
                 param_::_rev_indices->resize(max(param_::_rev_indices->size(),index+1));
                 param_::_rev_indices->at(index) = key;
                 res[i]._ids->at(0).push_back(index);
+                DebugOn("adding pair indices: " << key << endl);
             }
             else {
                 res[i]._ids->at(0).push_back(pp.first->second);
@@ -444,10 +458,20 @@ template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, 
         }
         /* Loop back pair */
         if(net.get_directed_arc(bag[0]->_name, bag[size-1]->_name)!=nullptr) {
-            key = bag[0]->_name + "," + bag[size-1]->_name;
+            if (index_bags) {
+                key = to_string(bag_id)+"_"+bag[0]->_name + "," + bag[size-1]->_name;
+            }
+            else {
+                key = bag[0]->_name + "," + bag[size-1]->_name;
+            }
         }
         else{
-            key = bag[size-1]->_name + "," + bag[0]->_name;
+            if (index_bags) {
+                key = to_string(bag_id)+"_"+bag[size-1]->_name + "," + bag[0]->_name;
+            }
+            else{
+                key = bag[size-1]->_name + "," + bag[0]->_name;
+            }
         }
         auto index = param_::_indices->size();
         auto pp = param_::_indices->insert(make_pair<>(key,index));
@@ -461,6 +485,7 @@ template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, 
         else {
             res[size-1]._ids->at(0).push_back(pp.first->second);
         }
+        bag_id++;
     }
     for (int i = 0; i<size; i++) {
         res[i]._dim[0]=res[i]._ids->at(0).size();
@@ -543,7 +568,7 @@ template<typename type>vector<var<type>> var<type>::pairs_in(const std::vector<s
     return res;
 }
 
-template<typename type>vector<var<type>> var<type>::in(const std::vector<std::vector<Node*>>& bags, unsigned size) {
+template<typename type>vector<var<type>> var<type>::in(const std::vector<std::vector<Node*>>& bags, unsigned size, bool index_bags) {
     vector<var> res;
     string key;
     res.resize(size);
@@ -563,8 +588,10 @@ template<typename type>vector<var<type>> var<type>::in(const std::vector<std::ve
         res[i]._indices = this->_indices;
     }
     set<vector<unsigned>> ids;
+    unsigned bag_id = 0;
     for (auto &bag: bags) {
         if (bag.size() != size) {
+            bag_id++;
             continue;
         }
         vector<unsigned> ids_bag;
@@ -579,7 +606,12 @@ template<typename type>vector<var<type>> var<type>::in(const std::vector<std::ve
         }
 
         for (int i = 0; i<size; i++) {
-            key = bag[i]->_name;
+            if(index_bags){
+                key = to_string(bag_id)+"_"+bag[i]->_name;
+            }
+            else {
+                key = bag[i]->_name;
+            }
             auto index = param_::_indices->size();
             auto pp = param_::_indices->insert(make_pair<>(key,index));
             if(pp.second) { //new index inserted
@@ -593,6 +625,7 @@ template<typename type>vector<var<type>> var<type>::in(const std::vector<std::ve
                 res[i]._ids->at(0).push_back(pp.first->second);
             }
         }
+        bag_id++;
     }
     for (int i = 0; i<size; i++) {
         res[i]._dim[0]=res[i]._ids->at(0).size();

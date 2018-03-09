@@ -6724,6 +6724,7 @@ namespace gravity{
     }
     
     void func_::print(size_t index) {
+        eval(index);
         cout << to_str(index);
     }
     
@@ -6731,7 +6732,6 @@ namespace gravity{
         
         auto nb_inst = get_nb_instances();
         for (unsigned inst = 0; inst<nb_inst; inst++) {
-            eval(inst);
             print(inst);
         }
         cout << endl;

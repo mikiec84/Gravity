@@ -302,5 +302,4 @@ void CplexProgram::prepare_model() {
     fill_in_cplex_vars();
     create_cplex_constraints();
     set_cplex_objective();
-    //    print_constraints();
 }

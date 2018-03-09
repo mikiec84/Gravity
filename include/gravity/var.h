@@ -254,6 +254,19 @@ public:
         return res;
     }
 
+    template<typename Tobj1, typename Tobj2>
+    var in(const vector<vector<Tobj1*>>& vec1, const vector<Tobj2*>& vec2) {
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::in(vec1,vec2));
+        res.param<type>::set_type(var_c);
+        if(!this->_lb->is_number()){
+            *res._lb = this->_lb->in(vec1,vec2);
+        }
+        if(!this->_ub->is_number()){
+            *res._ub = this->_ub->in(vec1,vec2);
+        }
+        return res;
+    }
     
     template<typename Tobj>
     var in(const vector<Tobj*>& vec) {
@@ -391,9 +404,9 @@ public:
     var from(const ordered_pairs& pairs);
     var to(const ordered_pairs& pairs);
     var in(const ordered_pairs& pairs);
-    vector<var> in(const std::vector<std::vector<Node*>>& bags, unsigned size);
+    vector<var> in(const std::vector<std::vector<Node*>>& bags, unsigned size, bool index_bags = false);
     vector<var> pairs_in(const std::vector<std::vector<Node*>>& bags, unsigned size);
-    vector<var> pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size);
+    vector<var> pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size, bool index_bags = false);
 
     /* Querries */
 

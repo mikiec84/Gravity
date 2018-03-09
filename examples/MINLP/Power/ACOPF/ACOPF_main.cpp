@@ -27,6 +27,7 @@ int main (int argc, char * argv[])
     int output = 0;
     bool relax = false;
     double tol = 1e-6;
+    string tolerance = "1e-6";
     string mehrotra = "no", log_level="0";
     
     /** create a OptionParser with options */
@@ -34,6 +35,7 @@ int main (int argc, char * argv[])
     opt.add_option("h", "help", "shows option help"); // no default value means boolean options, which default value is false
     opt.add_option("f", "file", "Input file name (def. ../data_sets/Power/nesta_case5_pjm.m)", fname );
     opt.add_option("l", "log", "Log level (def. 0)", log_level );
+    opt.add_option("t", "tol", "Numerical Tolerance (def. 1e-6)", tolerance );
     opt.add_option("m", "model", "power flow model: ACPOL/ACRECT (def. ACPOL)", mtype );
     
     /** parse the options and verify that all went well. If not, errors and help will be shown */
@@ -46,6 +48,7 @@ int main (int argc, char * argv[])
     fname = opt["f"];
     mtype = opt["m"];
     output = op::str2int(opt["l"]);
+    tol = op::str2double(opt["t"]);
     bool has_help = op::str2bool(opt["h"]);
     /** show help */
     if(has_help) {
@@ -242,25 +245,25 @@ int main (int argc, char * argv[])
         DebugOff(grid.th_min.to_str(true) << endl);
         DebugOff(grid.th_max.to_str(true) << endl);
     }
-//    ACOPF.add_constraint(PAD_UB.in(bus_pairs) <= 0);
-//    ACOPF.add_constraint(PAD_LB.in(bus_pairs) >= 0);
+    ACOPF.add_constraint(PAD_UB.in(bus_pairs) <= 0);
+    ACOPF.add_constraint(PAD_LB.in(bus_pairs) >= 0);
 
 
     /*  Thermal Limit Constraints */
     Constraint Thermal_Limit_from("Thermal_Limit_from");
     Thermal_Limit_from += power(Pf_from, 2) + power(Qf_from, 2);
     Thermal_Limit_from -= power(grid.S_max, 2);
-//    ACOPF.add_constraint(Thermal_Limit_from.in(grid.arcs) <= 0);
+    ACOPF.add_constraint(Thermal_Limit_from.in(grid.arcs) <= 0);
 
     Constraint Thermal_Limit_to("Thermal_Limit_to");
     Thermal_Limit_to += power(Pf_to, 2) + power(Qf_to, 2);
     Thermal_Limit_to -= power(grid.S_max,2);
-//    ACOPF.add_constraint(Thermal_Limit_to.in(grid.arcs) <= 0);
+    ACOPF.add_constraint(Thermal_Limit_to.in(grid.arcs) <= 0);
     DebugOff(grid.S_max.in(grid.arcs).to_str(true) << endl);
     
     solver OPF(ACOPF,ipopt);
     double solver_time_start = get_wall_time();
-    OPF.run(output, relax = false, tol = 1e-6, "ma27", mehrotra = "no");
+    OPF.run(output, relax = false, tol, "ma27", mehrotra = "no");
     double solver_time_end = get_wall_time();
     double total_time_end = get_wall_time();
     auto solve_time = solver_time_end - solver_time_start;

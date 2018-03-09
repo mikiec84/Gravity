@@ -902,6 +902,54 @@ namespace gravity {
         }
         
     
+        template<typename Tobj1, typename Tobj2> param in(const vector<vector<Tobj1*>>& vec1, const vector<Tobj2*>& vec2) {
+            param res(this->_name);
+            res._id = this->_id;
+            res._vec_id = this->_vec_id;
+            res._intype = this->_intype;
+            res._range = this->_range;
+            res._val = this->_val;
+            res._is_vector = this->_is_vector;
+            res._is_matrix = this->_is_matrix;
+            res._is_transposed = _is_transposed;
+            res._rev_indices = this->_rev_indices; res._indices = this->_indices;
+            if(vec1.empty() || vec2.empty()){
+                DebugOn("In function param.in(const vector<Tobj*>& vec), vec is empty!\n. Creating and empty variable! Check your sum/product operators.\n");
+                res._name += "EMPTY_VAR";
+                res._is_indexed = true;
+                return res;
+            }
+            DebugOff(_name << " = ");
+            string key1, key2;
+            for(unsigned i = 0; i <vec1.size(); i++) {
+                key1 = to_string(i);
+                for(auto it2 = vec2.begin(); it2!= vec2.end(); it2++) {
+                    if(!(*it2)->_active) {
+                        continue;
+                    }
+                    key2 = (*it2)->_name;
+                    auto index = _indices->size();
+                    auto pp = param_::_indices->insert(make_pair<>(key1+"_"+key2, index));
+                    if(pp.second) { //new index inserted
+                        _val->resize(max(_val->size(),index+1));
+                        _dim[0] = max(_dim[0],_val->size());
+                        _rev_indices->resize(_val->size());
+                        _rev_indices->at(index) = key1+"_"+key2;
+                        res._ids->at(0).push_back(index);
+                    }
+                    else {
+                        res._ids->at(0).push_back(pp.first->second);
+                    }
+                }
+            }
+            DebugOff(endl);
+            res._dim[0]=res._ids->at(0).size();
+            res._name += ".in_" + vec2.front()->_type_name;
+            res._unique_id = make_tuple<>(res.get_id(),in_, typeid(Tobj2).hash_code(), 0,0);
+            res._is_indexed = true;
+            return res;
+        }
+
         
         
         

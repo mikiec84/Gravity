@@ -378,14 +378,19 @@ int PowerNet::readgrid(const char* fname) {
     while(word.compare("];")) {
         src = word;
         file >> dest;
-        key = dest+","+src;//Taking care of reversed direction arcs
-        if(arcID.find(key)!=arcID.end()) {//Reverse arc direction
-            DebugOn("Adding arc linking " +src+" and "+dest);
-            DebugOn(" with reversed direction, reversing source and destination.\n");
+        if (get_node(src)->_id > get_node(dest)->_id) {
             key = src;
             src = dest;
             dest = key;
         }
+        key = dest+","+src;//Taking care of reversed direction arcs
+//        if(arcID.find(key)!=arcID.end()) {//Reverse arc direction
+//            DebugOn("Adding arc linking " +src+" and "+dest);
+//            DebugOn(" with reversed direction, reversing source and destination.\n");
+//            key = src;
+//            src = dest;
+//            dest = key;
+//        }
         
         arc = new Line(to_string(index) + "," + src + "," + dest); // Name of lines
         arc->_id = index++;
@@ -554,7 +559,7 @@ int PowerNet::readgrid(const char* fname) {
     DebugOff(tr.to_str(true) << endl);
 
     file.close();
-    if (nodes.size()>2000) {
+    if (nodes.size()>1000) {
         add_3d_nlin = false;
     }
     return 0;
@@ -648,11 +653,11 @@ void PowerNet::update_net(){
                                 bag.push_back(get_node(n->_name));
                                 bag.push_back(get_node(a->_dest->_name));
                                 bag.push_back(get_node(n1->_name));
-//                                sort(bag.begin(), bag.end(),
-//                                     [](const Node *a, const Node *b) -> bool { return a->_id < b->_id; });
+                                sort(bag.begin(), bag.end(),
+                                     [](const Node *a, const Node *b) -> bool { return a->_id < b->_id; });
 
                                 fixed++;
-                                sort(bag.begin(), bag.end(), [](const Node* a, const Node* b) -> bool{return a->_id < b->_id;});
+//                                sort(bag.begin(), bag.end(), [](const Node* a, const Node* b) -> bool{return a->_id < b->_id;});
                                 bags_sorted.push_back(bag);
                                 id_sorted++;
                                 DebugOff("\nFixing arc in a larger bag (" << a->_src->_name << ", " << a->_dest->_name << ")");
@@ -682,6 +687,7 @@ void PowerNet::update_net(){
 
 
     for(auto& k: _bus_pairs._keys){
+        DebugOff("Adding bus pair: " << k->_name << endl);
         _bus_pairs_chord._keys.push_back(new index_pair(*k));
     }
 
@@ -692,6 +698,7 @@ void PowerNet::update_net(){
 
             name = bus_s->_name + "," + bus_d->_name;
             _bus_pairs_chord._keys.push_back(new index_pair(index_(bus_s->_name), index_(bus_d->_name)));
+            DebugOff("Adding virtual bus pair: " << _bus_pairs_chord._keys.back()->_name << endl);
 
             if (m_theta_lb < -3.14 && m_theta_ub > 3.14) {
                 cos_max_ = 1;
