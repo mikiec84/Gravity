@@ -589,8 +589,8 @@ int main (int argc, char * argv[]) {
 //        SDP -= (wr12*wr12 + wi12*wi12)*w3 + (wr13*wr13 + wi13*wi13)*w2 + (wr23*wr23 + wi23*wi23)*w1;
 //        SDP += w1*w2*w3;
 
-        SDP3 = 2 * R_Wij_[0] * (R_Wij_[1] * R_Wij_[2] + I_sgn[1] * I_sgn[2] * Im_Wij_[1] * Im_Wij_[2]);
-        SDP3 += 2 * I_sgn[0] * Im_Wij_[0] * (R_Wij_[1] * I_sgn[2] * Im_Wij_[2] - I_sgn[1] * Im_Wij_[1] * R_Wij_[2]);
+        SDP3 =  2*R_Wij_[0]*(R_Wij_[1] * R_Wij_[2] + I_sgn[1] * I_sgn[2] * Im_Wij_[1] * Im_Wij_[2]);
+        SDP3 += 2*I_sgn[0]*Im_Wij_[0]*(R_Wij_[1] * I_sgn[2] * Im_Wij_[2] - I_sgn[1] * Im_Wij_[1] * R_Wij_[2]);
         SDP3 -= (power(R_Wij_[0], 2) + power(Im_Wij_[0], 2)) * Wii_[2];
         SDP3 -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
         SDP3 -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];

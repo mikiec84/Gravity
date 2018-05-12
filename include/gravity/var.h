@@ -293,10 +293,12 @@ public:
         res.param<type>::operator=(param<type>::in(vec));
         res.param<type>::set_type(var_c);
         if(!this->_lb->is_number()){
-            *res._lb = this->_lb->in(vec);
+            //*res._lb = this->_lb->in(vec);
+            res._lb = this->_lb;
         }
         if(!this->_ub->is_number()){
-            *res._ub = this->_ub->in(vec);
+            //*res._ub = this->_ub->in(vec);
+            res._ub = this->_ub;
         }
         return res;
     }

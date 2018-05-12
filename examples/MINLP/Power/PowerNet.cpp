@@ -1005,7 +1005,6 @@ double PowerNet::solve_acopf(PowerModelType pmt, int output, double tol) {
     ACOPF.add_constraint(PAD_UB.in(bus_pairs) <= 0);
     ACOPF.add_constraint(PAD_LB.in(bus_pairs) >= 0);
 
-
     /*  Thermal Limit Constraints */
     Constraint Thermal_Limit_from("Thermal_Limit_from");
     Thermal_Limit_from += power(Pf_from, 2) + power(Qf_from, 2);

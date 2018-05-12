@@ -58,15 +58,15 @@ int main (int argc, const char * argv[])
         //fname = "../../data_sets/Power/nesta_case3_lmbd.m";
         //fname = "../../data_sets/Power/nesta_case300_ieee.m";
         //fname = "../../data_sets/Power/nesta_case1354_pegase.m";
-        fname = "../../data_sets/Power/nesta_case14_ieee.m";
-        //fname = "../../data_sets/Power/nesta_case118_ieee.m";
+        //fname = "../../data_sets/Power/nesta_case14_ieee.m";
+        fname = "../../data_sets/Power/nesta_case118_ieee.m";
          //fname = "../../data_sets/Power/nesta_case57_ieee.m";
          Num_part = 1;
-         T =2;
+         T = 1;
     }
     auto grid = new PowerNet();
     grid->readgrid(fname);
-//grid->get_tree_decomp_bags();
+    //grid->get_tree_decomp_bags();
     //grid->get_chordal_extension()
 
     //grid->c2.print(true);

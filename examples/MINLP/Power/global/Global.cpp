@@ -112,11 +112,14 @@ Global::Global(PowerNet* net, int parts, int T) {
 
     // Commitment variables
     for (int t = 0; t < T; t++) {
-        var<bool>  On_offt("On_off_" + to_string(t));
+        //var<bool>  On_offt("On_off_" + to_string(t), 0, 1);
+        var<>  On_offt("On_off_" + to_string(t), 0, 1);
         //var<Real>  Start_upt("Start_up_" + to_string(t));
         //var<Real>  Shut_downt("Shut_down_" + to_string(t));
-        var<bool>  Start_upt("Start_up_" + to_string(t));
-        var<bool>  Shut_downt("Shut_down_" + to_string(t));
+        //var<bool>  Start_upt("Start_up_" + to_string(t));
+        //var<bool>  Shut_downt("Shut_down_" + to_string(t));
+        var<>  Start_upt("Start_up_" + to_string(t), 0, 1);
+        var<>  Shut_downt("Shut_down_" + to_string(t), 0, 1);
         //On_off.push_back(On_offt.in_at(grid->gens, t-1));
         //Start_up.push_back(Start_upt.in_at(grid->gens, t));
         //Shut_down.push_back(Shut_downt.in_at(grid->gens, t));
@@ -178,6 +181,7 @@ double Global::getdual_relax_time_(bool include) {
     for (int t= 0; t < Num_time; t++) {
         //add_SOCP_Sub_time(ACUC, t);
         add_SOCP_chord_Sub_time(ACUC, t);
+        add_3d_cuts_static(ACUC,t);
     }
 
     for (int t= 0; t < Num_time; t++) {
@@ -280,9 +284,9 @@ double Global::getdual_relax_time_(bool include) {
     }
     /* Solver selection */
     bool relax = true;
-    int output = 1;
-    solver cpx_acuc(ACUC, cplex);
-    //solver cpx_acuc(ACUC, ipopt);
+    int output = 5;
+   // solver cpx_acuc(ACUC, cplex);
+    solver cpx_acuc(ACUC, ipopt);
     double tol = 10e-6;
     cpx_acuc.run(output, relax, tol);
     cout << "the continuous relaxation bound is: " << ACUC._obj_val << endl;
@@ -378,9 +382,12 @@ double Global::getdual_relax_spatial() {
         Pg2.push_back(bag_Pg2.in(P_->bag_gens[c], Num_time));
         Qg.push_back(bag_Qg);
 
-        var<bool>  bag_Onoff("On_off_" + to_string(c));
-        var<bool>  bag_Up("Start_up_" + to_string(c));
-        var<bool>  bag_Down("Shut_down_" + to_string(c));
+        //var<bool>  bag_Onoff("On_off_" + to_string(c));
+        //var<bool>  bag_Up("Start_up_" + to_string(c));
+        //var<bool>  bag_Down("Shut_down_" + to_string(c));
+        var<>  bag_Onoff("On_off_" + to_string(c));
+        var<>  bag_Up("Start_up_" + to_string(c));
+        var<>  bag_Down("Shut_down_" + to_string(c));
         //var<Real>  bag_Up("Start_up_" + to_string(c));
         //var<Real>  bag_Down("Shut_down_" + to_string(c));
 
@@ -1456,11 +1463,11 @@ vector<int> Global::check_rank1_constraint_(Model& Sub, int t) {
         R_Xij_sol_(name) = R_Xij[t](name).eval();
     }
 
-    for (auto& n: grid->nodes){
+    for (auto& n: grid->nodes) {
         name = n->_name+","+to_string(t);
         Xii_sol_(name) = Xii[t](name).eval();
     }
-    
+
     cout << "\# equation violation: " << violations.size() << endl;
     return violations;
 }
@@ -1476,13 +1483,13 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
     Constraint Extend_SOCP("Extend_SOCP_1_");
     Extend_SOCP = gamma - 0.5*Xii[t].from() - 0.5*Xii[t].to();
     model.add_constraint(Extend_SOCP.in_at(bus_pairs, t)==0);
-    
+
     Constraint Extend_SOCP2("Extend_SOCP_2_");
     Extend_SOCP2 = 0.5*Xii[t].from() - 0.5*Xii[t].to()- z;
     model.add_constraint(Extend_SOCP2.in_at(bus_pairs, t)==0);
     // cone decomposition.
     // R_xij^2 + Im_xij^2 + z^2 <= gamma^2...
-    
+
     var<Real> y("y"); // auxilary vars for cone decomposition
     model.add_var(y.in_at(bus_pairs, t));
     // R_xij^2 + Im_xij^2 <= y^2.
@@ -1490,7 +1497,7 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
     //BenNem_Lorenz_(model, y(name), z(name), gamma, k);
     vector<var<Real>> alpha;
     vector<var<Real>> beta;
-    for (int i = 1; i <k+1; i++){
+    for (int i = 1; i <k+1; i++) {
         var<Real> alphai("alpha_"+to_string(i));
         var<Real> betai("beta_"+to_string(i));
         model.add_var(alphai.in_at(bus_pairs, t));
@@ -1502,12 +1509,12 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
         Constraint Extend1("Extend1_"+to_string(t)+"_"+to_string(i));
         Constraint Extend2("Extend2_"+to_string(t)+"_"+to_string(i));
         Constraint Extend3("Extend3_"+to_string(t)+"_"+to_string(i));
-        if (i == 0){
+        if (i == 0) {
             Extend1 = alpha[i] + R_Xij[t] ;
             Extend2 = -1*Im_Xij[t]   - beta[i] ;
             Extend3 = Im_Xij[t]- beta[i];
         }
-        else{
+        else {
             Extend1 = alpha[i] - alpha[i-1]*cos(M_PI*pow(0.5, i)) - beta[i-1]*sin(M_PI*pow(0.5, i));
             Extend2 = beta[i-1]*cos(M_PI*pow(0.5, i))- alpha[i-1]*sin(M_PI*pow(0.5, i))  - beta[i];
             Extend3 = alpha[i-1]*sin(M_PI*pow(0.5, i)) - beta[i-1]*cos(M_PI*pow(0.5, i)) - beta[i];
@@ -1517,13 +1524,13 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
         model.add_constraint(Extend2.in_at(bus_pairs, t) <=0);
         model.add_constraint(Extend3.in_at(bus_pairs, t) <=0);
     }
-        Constraint Extend4("Extend4_"+to_string(t));
-        Extend4 = y - alpha[k-1]*cos(M_PI*pow(0.5, k)) - beta[k-1]*sin(M_PI*pow(0.5, k));
-        model.add_constraint(Extend4.in_at(bus_pairs,t) ==0);
+    Constraint Extend4("Extend4_"+to_string(t));
+    Extend4 = y - alpha[k-1]*cos(M_PI*pow(0.5, k)) - beta[k-1]*sin(M_PI*pow(0.5, k));
+    model.add_constraint(Extend4.in_at(bus_pairs,t) ==0);
 
     vector<var<Real>> alphay;
     vector<var<Real>> betaz;
-    for (int i = 1; i <k+1; i++){
+    for (int i = 1; i <k+1; i++) {
         var<Real> alphayi("alphay_"+to_string(i));
         var<Real> betazi("betaz_"+to_string(i));
         model.add_var(alphayi.in_at(bus_pairs, t));
@@ -1535,12 +1542,12 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
         Constraint Extend1("Extend1_yz"+to_string(t)+"_"+to_string(i));
         Constraint Extend2("Extend2_yz"+to_string(t)+"_"+to_string(i));
         Constraint Extend3("Extend3_yz"+to_string(t)+"_"+to_string(i));
-        if (i == 0){
+        if (i == 0) {
             Extend1 = alphay[i] + y ;
             Extend2 = -1*z   - betaz[i] ;
             Extend3 = z- betaz[i];
         }
-        else{
+        else {
             Extend1 = alphay[i] - alphay[i-1]*cos(M_PI*pow(0.5, i)) - betaz[i-1]*sin(M_PI*pow(0.5, i));
             Extend2 = betaz[i-1]*cos(M_PI*pow(0.5, i))- alphay[i-1]*sin(M_PI*pow(0.5, i))  - betaz[i];
             Extend3 = alphay[i-1]*sin(M_PI*pow(0.5, i)) - betaz[i-1]*cos(M_PI*pow(0.5, i)) - betaz[i];
@@ -1549,19 +1556,19 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
         model.add_constraint(Extend2.in_at(bus_pairs, t) <=0);
         model.add_constraint(Extend3.in_at(bus_pairs, t) <=0);
     }
-        Constraint Extend4yz("Extend4_yz"+to_string(t));
-        Extend4yz = gamma - alphay[k-1]*cos(M_PI*pow(0.5, k)) - betaz[k-1]*sin(M_PI*pow(0.5, k));
-        model.add_constraint(Extend4yz.in_at(bus_pairs,t) ==0);
+    Constraint Extend4yz("Extend4_yz"+to_string(t));
+    Extend4yz = gamma - alphay[k-1]*cos(M_PI*pow(0.5, k)) - betaz[k-1]*sin(M_PI*pow(0.5, k));
+    model.add_constraint(Extend4yz.in_at(bus_pairs,t) ==0);
 }
 
-void  Global::add_SDP_S_(Model& model, vector<int> indices, int t){
-    // find all bags containning this link. 
+void  Global::add_SDP_S_(Model& model, vector<int> indices, int t) {
+    // find all bags containning this link.
     auto V = check_rank1_constraint_(model, t);
     string name;
-    if (V.size() >0){
+    if (V.size() >0) {
         //find eigenvectors..with negative values...
         arma::SpMat<double> val(2*grid->nodes.size(), 2*grid->nodes.size());
-        for (auto& node:grid->nodes){
+        for (auto& node:grid->nodes) {
             name = node->_name + "," + to_string(t);
             val(2*node->_id, 2*node->_id) = Xii_sol_(name).eval();
             val(2*node->_id+1, 2*node->_id+1) = Xii_sol_(name).eval();
@@ -1569,7 +1576,7 @@ void  Global::add_SDP_S_(Model& model, vector<int> indices, int t){
             val(2*node->_id+1, 2*node->_id) = 0;
         }
         //for (auto &pair: grid->get_bus_pairs()) {
-          //  name = pair->_name + "," + to_string(t);
+        //  name = pair->_name + "," + to_string(t);
 //            val(2*pair->_src->_id, 2*pair->_dest->_id) =  R_Xij_sol_(name);
 //            val(2*pair->_src->_id+1, 2*pair->_dest->_id+1) =  R_Xij_sol_(name);
 //            val(2*pair->_src->_id, 2*pair->_dest->_id+1) =  -Im_Xij_sol_(name);
@@ -1578,18 +1585,155 @@ void  Global::add_SDP_S_(Model& model, vector<int> indices, int t){
     }
 }
 
-void Global::add_3d_cuts_(Model& model, vector<int> indices, int t){
-    auto R_Xij_ = R_Xij[t].pairs_in_directed(*chordal, grid->_bags, 3);
-    auto Im_Xij_ = Im_Xij[t].pairs_in_directed(*chordal, grid->_bags, 3);
-    auto Xii_ = Xii[t].in(grid->_bags, 3);
-    Constraint sdpcut("3dcuts");
-    //sdpcut =  2*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2]+Im_Xij_[1]*Im_Xij_[2]);
-    //sdpcut += 2* Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2]+ Im_Xij_[1]*R_Xij_[2]);
-    sdpcut =  2*R_Xij_[2]*(R_Xij_[0]*R_Xij_[1]-Im_Xij_[0]*Im_Xij_[1]);
-    sdpcut += 2* Im_Xij_[2]*(R_Xij_[0]*Im_Xij_[1]+ Im_Xij_[0]*R_Xij_[1]);
-    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2))*Xii_[2];
-    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2))*Xii_[0];
-    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2))*Xii_[1];
-    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
-    model.add_constraint(sdpcut <= 0);
+vector<vector<string>> Global::get_3dmatrix_index(Net* net, const vector<vector<Node*>> bags, int t) {
+    string key;
+    vector<vector<string>> res;
+    int size =3;
+    res.resize(size); // 3d cuts
+    for (auto &bag: bags) {
+        if (bag.size() != size) {
+            continue;
+        }
+        for (int i = 0; i< size-1; i++) {
+            if(net->get_directed_arc(bag[i]->_name, bag[i+1]->_name)!=nullptr) {
+                key = bag[i]->_name + "," + bag[i+1]->_name + "," + to_string(t);
+            }
+            else {
+                throw invalid_argument("index should obey i < j!!");
+                key = bag[i+1]->_name + "," + bag[i]->_name + "," + to_string(t);
+            }
+            res[i].push_back(key);
+        }
+        /* Loop back pair */
+        if(net->get_directed_arc(bag[0]->_name, bag[size-1]->_name)!=nullptr) {
+            key = bag[0]->_name + "," + bag[size-1]->_name +","+to_string(t);
+        }
+        else {
+            throw invalid_argument("index should obey i < j!!");
+            key = bag[size-1]->_name + "," + bag[0]->_name+","+to_string(t);
+        }
+        res[size-1].push_back(key);
+    }
+    return res;
+}
+std::vector<std::vector<string>> Global::get_3ddiagon_index(const std::vector<std::vector<Node*>> bags, int t){
+    string key;
+    vector<vector<string>> res;
+    int size =3;
+    res.resize(size); // 3d cuts
+    for (auto &bag: bags) {
+        if (bag.size() != size) {
+            continue;
+        }
+        for (int i = 0; i< size; i++) {
+            key = bag[i]->_name +"," + to_string(t);
+            res[i].push_back(key);
+        }
+    }
+    return res;
+}
+//vector<param<>> signs(Net& net, const std::vector<std::vector<Node*>>& bags) {
+//    vector<param<>> res;
+//    string key;
+//    size_t idx;
+//    res.resize(3);
+//    for (int i = 0; i<3; i++) {
+//        res[i].set_name("I_sign_"+to_string(i));
+//    }
+//    set<vector<unsigned>> ids;
+//    for (auto &bag: net._bags) {
+//        if (bag.size() != 3) {
+//            continue;
+//        }
+//        vector<unsigned> ids_bag;
+//        for (int i = 0; i<3; i++) {
+//            ids_bag.push_back(bag[i]->_id);
+//        }
+//        if(ids.count(ids_bag)==0) {
+//            ids.insert(ids_bag);
+//        } else {
+//            continue;
+//        }
+//        for (int i = 0; i< 2; i++) {
+//            if(net.has_directed_arc(bag[i], bag[i+1])) {
+//                key = bag[i]->_name + "," + bag[i+1]->_name;
+//                idx = res[i].set_val(key,1.0); //
+//                res[i]._ids->at(0).push_back(idx);
+//            }
+//            else {
+//                key = bag[i+1]->_name + "," + bag[i]->_name;
+//                DebugOff("\nreversed arc " << key);
+//                idx = res[i].set_val(key,-1.0);
+//                res[i]._ids->at(0).push_back(idx);
+//            }
+//        }
+//        /* Loop back pair */
+//        if(net.has_directed_arc(bag[0], bag[2])) {
+//            key = bag[0]->_name + "," + bag[2]->_name;
+//            idx = res[2].set_val(key,1.0);
+//            res[2]._ids->at(0).push_back(idx);
+//        }
+//        else{
+//            key = bag[2]->_name + "," + bag[0]->_name;
+//            DebugOff("\nreversed arc " << key);
+//            idx = res[2].set_val(key,-1.0);
+//            res[2]._ids->at(0).push_back(idx);
+//        }
+//    }
+//    for (int i = 0; i<3; i++) {
+//        res[i]._dim[0]=res[i]._ids->at(0).size();
+//        res[i]._is_indexed = true;
+//    }
+//    return res;
+//}
+
+
+//void Global::add_3d_cuts_(Model& model, vector<int> indices, int t){
+void Global::add_3d_cuts_static(Model& model, int t) {
+    auto keys = get_3dmatrix_index(chordal, grid->_bags, t);
+    auto keyii = get_3ddiagon_index(grid->_bags, t);
+    auto R_Xij_0 = R_Xij[t].in(keys[0]);
+    auto R_Xij_1 = R_Xij[t].in(keys[1]);
+    auto R_Xij_2 = R_Xij[t].in(keys[2]);
+    auto Im_Xij_0 = Im_Xij[t].in(keys[0]);
+    auto Im_Xij_1 = Im_Xij[t].in(keys[1]);
+    auto Im_Xij_2 = Im_Xij[t].in(keys[2]);
+    auto Xii_0 = Xii[t].in(keyii[0]);
+    auto Xii_1 = Xii[t].in(keyii[1]);
+    auto Xii_2 = Xii[t].in(keyii[2]);
+    //auto Xii_ = Xii[t].in(grid->_bags, 3);
+    Constraint sdpcut("3dcuts"+to_string(t));
+    for (int  i = 0; i < 3; i++){
+        cout << "key " << i <<" ";
+        for (auto key: keys[i]){
+            cout << key << "   " ;
+        }
+        cout << endl;
+    }
+    
+    for (int  i = 0; i < 3; i++){
+        cout << "Xii_key " << i <<" ";
+        for (auto key: keyii[i]){
+            cout << key << "   " ;
+        }
+        cout << endl;
+    }
+    //sdpcut =  2*R_Xij[t].in(keys[2])*(R_Xij[t].in(keys[0])*R_Xij[t].in(keys[1])-Im_Xij[t].in(keys[0])*Im_Xij[t].in(keys[1]));
+    //sdpcut += 2*Im_Xij[t].in(keys[2])*(R_Xij[t].in(keys[0])*Im_Xij[t].in(keys[1])+ Im_Xij[t].in(keys[0])*R_Xij[t].in(keys[1]));
+    //sdpcut =  2*R_Xij[t].in(keys[0])*(R_Xij[t].in(keys[1])*R_Xij[t].in(keys[2]) + Im_Xij[t].in(keys[1])*Im_Xij[t].in(keys[2]));
+    //sdpcut += 2*Im_Xij[t].in(keys[0])*(R_Xij[t].in(keys[1])*Im_Xij[t].in(keys[2])- Im_Xij[t].in(keys[1])*R_Xij[t].in(keys[2]));
+    //sdpcut -= (power(R_Xij[t].in(keys[0]), 2) + power(Im_Xij[t].in(keys[0]), 2))*Xii[t].in(keyii[2]);
+    //sdpcut -= (power(R_Xij[t].in(keys[1]), 2) + power(Im_Xij[t].in(keys[1]), 2))*Xii[t].in(keyii[0]);
+    //sdpcut -= (power(R_Xij[t].in(keys[2]), 2) + power(Im_Xij[t].in(keys[2]), 2))*Xii[t].in(keyii[1]);
+    //sdpcut += Xii[t].in(keyii[0])*Xii[t].in(keyii[1])*Xii[t].in(keyii[2]);
+    //sdpcut.print(0);
+    sdpcut =  2*R_Xij_0*(R_Xij_1*R_Xij_2 + Im_Xij_1 * Im_Xij_2);
+    sdpcut += 2*Im_Xij_0*(R_Xij_1*Im_Xij_2 -Im_Xij_1 * R_Xij_2);
+    sdpcut -= (power(R_Xij_0, 2) + power(Im_Xij_0, 2)) * Xii_2;
+    sdpcut -= (power(R_Xij_1, 2) + power(Im_Xij_1, 2)) * Xii_0;
+    sdpcut -= (power(R_Xij_2, 2) + power(Im_Xij_2, 2)) * Xii_1;
+    sdpcut += Xii_0*Xii_1*Xii_2;
+    DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
+    //sdpcut.print(0);
+    //model.add_constraint(sdpcut <= 0);
 }
