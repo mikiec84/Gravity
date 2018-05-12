@@ -95,6 +95,9 @@ Global::Global(PowerNet* net, int parts, int T) {
         var<Real>  Xiit("Wii" + to_string(t), grid->w_min.in_at(grid->nodes,t), grid->w_max.in_at(grid->nodes,t));
         R_Xijt.initialize_all(1.0);
         Xiit.initialize_all(1.001);
+        //R_Xij.push_back(R_Xijt.in_at(bus_pairs_chord, t));
+        //Im_Xij.push_back(Im_Xijt.in_at(bus_pairs_chord, t));
+        //Xii.push_back(Xiit.in_at(grid->nodes, t));
         R_Xij.push_back(R_Xijt);
         Im_Xij.push_back(Im_Xijt);
         Xii.push_back(Xiit);
@@ -1693,31 +1696,41 @@ void Global::add_3d_cuts_static(Model& model, int t) {
     auto keys = get_3dmatrix_index(chordal, grid->_bags, t);
     auto keyii = get_3ddiagon_index(grid->_bags, t);
     auto R_Xij_0 = R_Xij[t].in(keys[0]);
+    R_Xij_0._name += "_0";
     auto R_Xij_1 = R_Xij[t].in(keys[1]);
+    R_Xij_1._name += "_1";
     auto R_Xij_2 = R_Xij[t].in(keys[2]);
+    R_Xij_2._name += "_2";
     auto Im_Xij_0 = Im_Xij[t].in(keys[0]);
+    Im_Xij_0._name += "_0";
     auto Im_Xij_1 = Im_Xij[t].in(keys[1]);
+    Im_Xij_1._name += "_1";
     auto Im_Xij_2 = Im_Xij[t].in(keys[2]);
+    Im_Xij_2._name += "_2";
     auto Xii_0 = Xii[t].in(keyii[0]);
+    Xii_0._name += "_0";
     auto Xii_1 = Xii[t].in(keyii[1]);
+    Xii_1._name += "_1";
     auto Xii_2 = Xii[t].in(keyii[2]);
+    Xii_2._name += "_2";
+
     //auto Xii_ = Xii[t].in(grid->_bags, 3);
     Constraint sdpcut("3dcuts"+to_string(t));
-    for (int  i = 0; i < 3; i++){
-        cout << "key " << i <<" ";
-        for (auto key: keys[i]){
-            cout << key << "   " ;
-        }
-        cout << endl;
-    }
-    
-    for (int  i = 0; i < 3; i++){
-        cout << "Xii_key " << i <<" ";
-        for (auto key: keyii[i]){
-            cout << key << "   " ;
-        }
-        cout << endl;
-    }
+//    for (int  i = 0; i < 3; i++){
+//        cout << "key " << i <<" ";
+//        for (auto key: keys[i]){
+//            cout << key << "   " ;
+//        }
+//        cout << endl;
+//    }
+//    
+//    for (int  i = 0; i < 3; i++){
+//        cout << "Xii_key " << i <<" ";
+//        for (auto key: keyii[i]){
+//            cout << key << "   " ;
+//        }
+//        cout << endl;
+//    }
     //sdpcut =  2*R_Xij[t].in(keys[2])*(R_Xij[t].in(keys[0])*R_Xij[t].in(keys[1])-Im_Xij[t].in(keys[0])*Im_Xij[t].in(keys[1]));
     //sdpcut += 2*Im_Xij[t].in(keys[2])*(R_Xij[t].in(keys[0])*Im_Xij[t].in(keys[1])+ Im_Xij[t].in(keys[0])*R_Xij[t].in(keys[1]));
     //sdpcut =  2*R_Xij[t].in(keys[0])*(R_Xij[t].in(keys[1])*R_Xij[t].in(keys[2]) + Im_Xij[t].in(keys[1])*Im_Xij[t].in(keys[2]));
@@ -1734,6 +1747,6 @@ void Global::add_3d_cuts_static(Model& model, int t) {
     sdpcut -= (power(R_Xij_2, 2) + power(Im_Xij_2, 2)) * Xii_1;
     sdpcut += Xii_0*Xii_1*Xii_2;
     DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
-    //sdpcut.print(0);
-    //model.add_constraint(sdpcut <= 0);
+    sdpcut.print(0);
+    model.add_constraint(sdpcut <= 0);
 }
