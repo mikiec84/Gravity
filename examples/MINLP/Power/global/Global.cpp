@@ -1751,6 +1751,9 @@ void Global::add_3d_cuts_static(Model& model, int t) {
     name1 = "2,4,0";
     name2 = "1,4,0";
     
+    Xii[t].print(true);
+    R_Xij[t].print(true);
+    Im_Xij[t].print(true);
     sdpcut2 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
     sdpcut2 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
     sdpcut2 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
