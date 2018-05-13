@@ -20,10 +20,61 @@
 using namespace std;
 using namespace gravity;
 
+vector<vector<string>> get_3dmatrix_index(Net* net, const vector<vector<Node*>> bags) {
+    string key;
+    vector<vector<string>> res;
+    int size =3;
+    res.resize(size); // 3d cuts
+    for (auto &bag: bags) {
+        if (bag.size() != size) {
+            continue;
+        }
+        for (int i = 0; i< size-1; i++) {
+            if(net->get_directed_arc(bag[i]->_name, bag[i+1]->_name)!=nullptr) {
+                key = bag[i]->_name + "," + bag[i+1]->_name ;
+            }
+            else {
+                throw invalid_argument("index should obey i < j!!");
+                key = bag[i+1]->_name + "," + bag[i]->_name ;
+            }
+            res[i].push_back(key);
+        }
+        /* Loop back pair */
+        if(net->get_directed_arc(bag[0]->_name, bag[size-1]->_name)!=nullptr) {
+            key = bag[0]->_name + "," + bag[size-1]->_name;
+        }
+        else {
+            throw invalid_argument("index should obey i < j!!");
+            key = bag[size-1]->_name + "," + bag[0]->_name;
+        }
+        res[size-1].push_back(key);
+    }
+    return res;
+}
+std::vector<std::vector<string>> get_3ddiagon_index(const std::vector<std::vector<Node*>> bags){
+    string key;
+    vector<vector<string>> res;
+    int size =3;
+    res.resize(size); // 3d cuts
+    for (auto &bag: bags) {
+        if (bag.size() != size) {
+            continue;
+        }
+        for (int i = 0; i< size; i++) {
+            key = bag[i]->_name ;
+            res[i].push_back(key);
+        }
+    }
+    return res;
+}
+
+
+
+
 int main (int argc, char * argv[])
 {
     int output = 0;
-    bool relax = false, use_cplex = true, use_gurobi = false;
+    bool relax = false, use_cplex = false, use_gurobi = false;
     double tol = 1e-6;
     double solver_time_end, total_time_end, solve_time, total_time;
     string mehrotra = "no", log_level="0";
@@ -79,6 +130,9 @@ int main (int argc, char * argv[])
     DebugOn("nb buses = " << nb_buses << endl);
     DebugOn("nb bus_pairs = " << nb_bus_pairs << endl);
     
+    auto chordal = grid.get_chordal_extension();
+    grid.update_update_bus_pairs_chord(chordal);
+    
     /** Build model */
     Model SOCP("SOCP Model");
     
@@ -107,8 +161,8 @@ int main (int argc, char * argv[])
     /* Magnitude of Wii = Vi^2 */
     var<Real>  Wii("Wii", grid.w_min, grid.w_max);
     SOCP.add_var(Wii.in(grid.nodes));
-    SOCP.add_var(R_Wij.in(bus_pairs));
-    SOCP.add_var(Im_Wij.in(bus_pairs));
+    SOCP.add_var(R_Wij.in(grid._bus_pairs_chord));
+    SOCP.add_var(Im_Wij.in(grid._bus_pairs_chord));
     
     /* Initialize variables */
     R_Wij.initialize_all(1.0);
@@ -122,7 +176,7 @@ int main (int argc, char * argv[])
     /* Second-order cone constraints */
     Constraint SOC("SOC");
     SOC = power(R_Wij, 2) + power(Im_Wij, 2) - Wii.from()*Wii.to();
-    SOCP.add_constraint(SOC.in(bus_pairs) <= 0);
+    SOCP.add_constraint(SOC.in(grid._bus_pairs_chord) <= 0);
 
     /* Flow conservation */
     Constraint KCL_P("KCL_P");
@@ -188,6 +242,36 @@ int main (int argc, char * argv[])
     LNC2 += grid.v_min.from()*grid.v_min.to()*grid.cos_d*(grid.v_min.from()*grid.v_min.to() - grid.v_max.from()*grid.v_max.to());
     SOCP.add(LNC2.in(bus_pairs) >= 0);
     
+    
+    auto keys = get_3dmatrix_index(chordal, grid._bags);
+    auto keyii = get_3ddiagon_index(grid._bags);
+    vector<var<Real>> R_Wij_;
+    vector<var<Real>> Im_Wij_;
+    vector<var<Real>> Wii_;
+    R_Wij_.resize(3);
+    Im_Wij_.resize(3);
+    Wii_.resize(3);
+    for (int i = 0; i < 3; i++){
+        R_Wij_[i] = R_Wij.in(keys[i]);
+        R_Wij_[i]._name += to_string(i);
+        Im_Wij_[i] = Im_Wij.in(keys[i]);
+        Im_Wij_[i]._name += to_string(i);
+        Wii_[i] = Wii.in(keyii[i]);
+        Wii_[i]._name += to_string(i);
+        Wii_[i]._unique_id = make_tuple<>(Wii.get_id(),in_,typeid(Real).hash_code(), 0, i);
+        R_Wij_[i]._unique_id = make_tuple<>(R_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
+        Im_Wij_[i]._unique_id = make_tuple<>(Im_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
+    }
+    Constraint sdpcut("3dcuts_");
+    sdpcut = 2.0*R_Wij_[0]*(R_Wij_[1]*R_Wij_[2] +Im_Wij_[1]*Im_Wij_[2]);
+    sdpcut += 2.0*Im_Wij_[0]*(R_Wij_[1]*Im_Wij_[2] -Im_Wij_[1]*R_Wij_[2]);
+    sdpcut -= (power(R_Wij_[0], 2) + power(Im_Wij_[0], 2)) * Wii_[2];
+    sdpcut -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
+    sdpcut -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];
+    sdpcut += Wii_[0]*Wii_[1]*Wii_[2];
+    DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
+    sdpcut.print_expanded();
+    SOCP.add_constraint(sdpcut <= 0);
     /* Solver selection */
     /* TODO: declare only one solver and one set of time measurment functions for all solvers. */
     if (use_cplex) {
@@ -217,6 +301,7 @@ int main (int argc, char * argv[])
         solve_time = solver_time_end - solver_time_start;
         total_time = total_time_end - total_time_start;
     }
+    
     /** Uncomment next line to print expanded model */
     /* SOCP.print_expanded(); */
 //    for (auto& pair: bus_pairs){

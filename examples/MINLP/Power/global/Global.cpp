@@ -103,10 +103,10 @@ Global::Global(PowerNet* net, int parts, int T) {
         Xii.push_back(Xiit);
     }
     for (int t = 0; t < T; t++) {
-        var<Real> Pf_fromt("Pf_from", grid->S_max.in_at(grid->arcs, t));
-        var<Real> Qf_fromt("Qf_from", grid->S_max.in_at(grid->arcs, t));
-        var<Real> Pf_tot("Pf_to", grid->S_max.in_at(grid->arcs, t));
-        var<Real> Qf_tot("Qf_to", grid->S_max.in_at(grid->arcs, t));
+        var<Real> Pf_fromt("Pf_from"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<Real> Qf_fromt("Qf_from"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<Real> Pf_tot("Pf_to"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<Real> Qf_tot("Qf_to"+to_string(t), grid->S_max.in_at(grid->arcs, t));
         Pf_from.push_back(Pf_fromt);
         Qf_from.push_back(Qf_fromt);
         Pf_to.push_back(Pf_tot);
@@ -222,7 +222,7 @@ double Global::getdual_relax_time_(bool include) {
             if (g->_active) {
                 string name = g->_name + ","+ to_string(t);
                 obj += grid->c1(name)*Pg[t](name)+ grid->c2(name)*Pg[t](name)*Pg[t](name) + grid->c0(name)*On_off[t](name);
-                //obj += cost_up.getvalue()*Start_up[t](name)+ cost_down.getvalue()*Shut_down[t](name);
+                obj += cost_up.getvalue()*Start_up[t](name)+ cost_down.getvalue()*Shut_down[t](name);
             }
         }
     }
@@ -230,7 +230,7 @@ double Global::getdual_relax_time_(bool include) {
     for (int t= 0; t < Num_time; t++) {
         //add_SOCP_Sub_time(ACUC, t);
         add_SOCP_chord_Sub_time(ACUC, t);
-        add_3d_cuts_static(ACUC,t);
+        //add_3d_cuts_static(ACUC,t);
     }
 
     for (int t= 0; t < Num_time; t++) {
@@ -1703,63 +1703,59 @@ void Global::add_3d_cuts_static(Model& model, int t) {
         R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
         Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
     }
-    
-    string name0, name1, name2;
-   // for (int i = 0; i < 3; i++){
-        Constraint sdpcut("3dcuts_"+to_string(t) + "," + to_string(0));
-//    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
-//    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
-//    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
-//    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
-//    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
-//    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
-    name0 ="1,4,0";
-    name1 = "4,5,0";
-    name2 = "1,5,0";
-    
-    sdpcut = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
-    sdpcut += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
-    sdpcut -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("5,0");
-    sdpcut -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
-    sdpcut -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("4,0");
-    sdpcut += Xii[t]("1,0")*Xii[t]("4,0")*Xii[t]("5,0");
-    //sdpcut = 2.0*R_Xij_[0](name0)*(R_Xij_[1](name1)*R_Xij_[2](name2) +Im_Xij_[1](name1)*Im_Xij_[2](name2));
-    //sdpcut += 2.0*Im_Xij_[0](name0)*(R_Xij_[1](name1)*Im_Xij_[2](name2) -Im_Xij_[1](name1)*R_Xij_[2](name2));
-    //sdpcut -= (power(R_Xij_[0](name0), 2) + power(Im_Xij_[0](name0), 2)) * Xii_[2]("5,0");
-    //sdpcut -= (power(R_Xij_[1](name1), 2) + power(Im_Xij_[1](name1), 2)) * Xii_[0]("1,0");
-    //sdpcut -= (power(R_Xij_[2](name2), 2) + power(Im_Xij_[2](name2), 2)) * Xii_[1]("4,0");
-    //sdpcut += Xii_[0]("1,0")*Xii_[1]("4,0")*Xii_[2]("5,0");
-    
+    Constraint sdpcut("3dcuts_"+to_string(t));
+    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
+    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
+    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
+    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
+    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
+    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
     DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
     sdpcut.print_expanded();
     model.add_constraint(sdpcut <= 0);
-    Constraint sdpcut1("3dcuts_"+to_string(t) + "," + to_string(1));
-    name0 ="2,3,0";
-    name1 = "3,4,0";
-    name2 = "2,4,0";
     
-    sdpcut1 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
-    sdpcut1 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
-    sdpcut1 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
-    sdpcut1 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("2,0");
-    sdpcut1 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("3,0");
-    sdpcut1 += Xii[t]("2,0")*Xii[t]("3,0")*Xii[t]("4,0");
-    model.add_constraint(sdpcut1 <= 0);
-
-    Constraint sdpcut2("3dcuts_"+to_string(t) + "," + to_string(2));
-    name0 ="1,2,0";
-    name1 = "2,4,0";
-    name2 = "1,4,0";
-    
-    Xii[t].print(true);
-    R_Xij[t].print(true);
-    Im_Xij[t].print(true);
-    sdpcut2 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
-    sdpcut2 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
-    sdpcut2 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
-    sdpcut2 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
-    sdpcut2 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("2,0");
-    sdpcut2 += Xii[t]("1,0")*Xii[t]("2,0")*Xii[t]("4,0");
-    model.add_constraint(sdpcut2 <= 0);
+//    string name0, name1, name2;
+//    Constraint sdpcut("3dcuts_"+to_string(t) + "," + to_string(0));
+//    name0 ="1,4,0";
+//    name1 = "4,5,0";
+//    name2 = "1,5,0";
+//    
+//    sdpcut = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
+//    sdpcut += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
+//    sdpcut -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("5,0");
+//    sdpcut -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
+//    sdpcut -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("4,0");
+//    sdpcut += Xii[t]("1,0")*Xii[t]("4,0")*Xii[t]("5,0");
+//    DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
+//    sdpcut.print_expanded();
+//    model.add_constraint(sdpcut <= 0);
+//    Constraint sdpcut1("3dcuts_"+to_string(t) + "," + to_string(1));
+//    name0 ="2,3,0";
+//    name1 = "3,4,0";
+//    name2 = "2,4,0";
+//    
+//    sdpcut1 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
+//    sdpcut1 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
+//    sdpcut1 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
+//    sdpcut1 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("2,0");
+//    sdpcut1 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("3,0");
+//    sdpcut1 += Xii[t]("2,0")*Xii[t]("3,0")*Xii[t]("4,0");
+//    model.add_constraint(sdpcut1 <= 0);
+//
+//    Constraint sdpcut2("3dcuts_"+to_string(t) + "," + to_string(2));
+//    name0 ="1,2,0";
+//    name1 = "2,4,0";
+//    name2 = "1,4,0";
+//    
+//    Xii[t].print(true);
+//    R_Xij[t].print(true);
+//    Im_Xij[t].print(true);
+//    sdpcut2 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
+//    sdpcut2 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
+//    sdpcut2 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
+//    sdpcut2 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
+//    sdpcut2 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("2,0");
+//    sdpcut2 += Xii[t]("1,0")*Xii[t]("2,0")*Xii[t]("4,0");
+//    model.add_constraint(sdpcut2 <= 0);
 //}
 }

@@ -473,6 +473,12 @@ public:
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
+//        if(!this->_lb->is_number()){
+//            *res._lb = this->_lb->in_at(vec,t); // lb is func_
+//        }
+//        if(!this->_ub->is_number()){
+//            *res._ub = this->_ub->in_at(vec,t);
+//        }
         return res;
     }
     
@@ -483,6 +489,12 @@ public:
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
+        //if(!this->_lb->is_number()){
+         //   *res._lb = this->_lb->in_at(vec, t); // lb is func_
+        //}
+        //if(!this->_ub->is_number()){
+        //    *res._ub = this->_ub->in_at(vec,t);
+        //}
         return res;
     }
 
