@@ -164,47 +164,47 @@ Global::Global(PowerNet* net, int parts, int T) {
 
 double Global::solve_sdpcut_opf_(){
     const auto bus_pairs = grid->get_bus_pairs();
-    Model ACUC("ACUC Model");
+    Model ACOPF("ACOPF Model");
     for (int t = 0; t < Num_time; t++) {
-        add_var_Sub_time(ACUC,  t);
+        add_var_Sub_time(ACOPF,  t);
     }  
     /**  Objective */
     auto obj = product(grid->c1, Pg[0]) + product(grid->c2, power(Pg[0],2)) + sum(grid->c0);
-    ACUC.set_objective(min(obj));
+    ACOPF.set_objective(min(obj));
     for (int t= 0; t < Num_time; t++) {
         //add_SOCP_Sub_time(ACUC, t);
-        add_SOCP_chord_Sub_time(ACUC, t);
-        add_3d_cuts_static(ACUC,t);
+        add_SOCP_chord_Sub_time(ACOPF, t);
+        add_3d_cuts_static(ACOPF,t);
     }
     
     for (int t= 0; t < Num_time; t++) {
-        add_KCL_Sub_time(ACUC, t);
+        add_KCL_Sub_time(ACOPF, t);
         Constraint Thermal_Limit_from("Thermal_Limit_from" + to_string(t));
         Thermal_Limit_from = power(Pf_from[t], 2) + power(Qf_from[t], 2);
         Thermal_Limit_from <= power(grid->S_max,2);
-        ACUC.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
+        ACOPF.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
         
         Constraint Thermal_Limit_to("Thermal_Limit_to" + to_string(t));
         Thermal_Limit_to = power(Pf_to[t], 2) + power(Qf_to[t], 2);
         Thermal_Limit_to <= power(grid->S_max, 2);
-        ACUC.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
+        ACOPF.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
         
         Constraint PAD_UB("PAD_UB_"+to_string(t));
         PAD_UB = Im_Xij[t]- grid->tan_th_max*R_Xij[t];
-        ACUC.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
+        ACOPF.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
         
         Constraint PAD_LB("PAD_LB_"+to_string(t));
         PAD_LB = Im_Xij[t]- grid->tan_th_min*R_Xij[t];
-        ACUC.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
+        ACOPF.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
     }
     
     /* Solver selection */
     bool relax = true;
     int output = 5;
-    solver cpx_acuc(ACUC, ipopt);
+    solver cpx_acuc(ACOPF, ipopt);
     double tol = 10e-6;
     cpx_acuc.run(output, relax, tol);
-    cout << "the continuous relaxation bound is: " << ACUC._obj_val << endl;
+    cout << "the continuous relaxation bound is: " << ACOPF._obj_val << endl;
 }
 
 
