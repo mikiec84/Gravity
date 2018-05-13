@@ -602,7 +602,7 @@ void Net::get_tree_decomp_bags(bool print_bags) {
     int nb = 0;
     int nb_added = 0;
     /** cliques with less than 1 nodes are useless for us.*/
-    while (graph_clone->nodes.size()> 1) {
+    while (graph_clone->nodes.size()> 2) {
         sort(graph_clone->nodes.begin(), graph_clone->nodes.end(),node_compare);
 
         // last element has the minimum fill-in.
@@ -782,7 +782,7 @@ Net* Net::get_chordal_extension() {
     int nb = 0;
 
     /** cliques with less than 1 node are useless for us.*/
-    while (graph_clone->nodes.size() > 1) {
+    while (graph_clone->nodes.size() > 2) {
         sort(graph_clone->nodes.begin(), graph_clone->nodes.end(),node_compare);
         // last element has the minimum fill-in.
         n = graph_clone->nodes.back();
@@ -790,15 +790,15 @@ Net* Net::get_chordal_extension() {
         Debug(_clone->nodes.size() << endl);
         vector<Node*> bag_copy;
         vector<Node*> bag;
-        DebugOn("new bag_copy = { ");
+        Debug("new bag_copy = { ");
 
         for (const auto& nn: n->get_neighbours()) {
             if(!nn->_active) continue;
             bag_copy.push_back(nn);
             bag.push_back(get_node(nn->_name)); // Note it takes original node.
-            DebugOn(nn->_name << ", ");
+            Debug(nn->_name << ", ");
         }
-        DebugOn(n->_name << "}\n");
+        Debug(n->_name << "}\n");
         graph_clone->remove_end_node();
         bag_copy.push_back(n);
         bag.push_back(get_node(n->_name)); // node in this graph

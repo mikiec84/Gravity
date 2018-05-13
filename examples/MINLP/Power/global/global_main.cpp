@@ -51,10 +51,10 @@ int main (int argc, const char * argv[])
         Num_part = atoi(argv[3]);
     }
     else {
-        // fname = "../../data_sets/Power/nesta_case5_pjm.m";
+         fname = "../../data_sets/Power/nesta_case5_pjm.m";
         //fname = "../../data_sets/Power/nesta_case30_ieee.m";
         //fname = "../../data_sets/Power/nesta_case6_c.m";
-        fname = "../../data_sets/Power/nesta_case5_pjm.m";
+        //fname = "../../data_sets/Power/nesta_case5_pjm.m";
         //fname = "../../data_sets/Power/nesta_case3_lmbd.m";
         //fname = "../../data_sets/Power/nesta_case300_ieee.m";
         //fname = "../../data_sets/Power/nesta_case1354_pegase.m";
@@ -79,6 +79,7 @@ int main (int argc, const char * argv[])
     // Schedule Parameters
     bool include_min_updown = true;
     auto global = new Global(grid, Num_part, T);
+    global->solve_sdpcut_opf_();
     double cst_t = global->getdual_relax_time_(include_min_updown);
     double lr_t = global->LR_bound_time_(include_min_updown);
     cout << "time lr lower bound: " << to_string(lr_t) << endl;

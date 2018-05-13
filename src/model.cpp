@@ -787,7 +787,7 @@ void Model::fill_in_var_bounds(double* x_l ,double* x_u) {
                 for (int i = 0; i < real_var->get_dim(); i++) {
                     x_l[vid+i] = real_var->get_lb(i);
                     x_u[vid+i] = real_var->get_ub(i);
-                    DebugOff("(" << i << ")" << " : [" << x_l[vid+i] << "," << x_u[vid+i] << "]\n");
+                    DebugOn("(" << i << ")" << " : [" << x_l[vid+i] << "," << x_u[vid+i] << "]\n");
                 }
                 DebugOff(";" << endl);
                 break;

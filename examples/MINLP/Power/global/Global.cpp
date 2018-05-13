@@ -162,6 +162,52 @@ Global::Global(PowerNet* net, int parts, int T) {
     SOC_outer_.resize(T);
 }
 
+double Global::solve_sdpcut_opf_(){
+    const auto bus_pairs = grid->get_bus_pairs();
+    Model ACUC("ACUC Model");
+    for (int t = 0; t < Num_time; t++) {
+        add_var_Sub_time(ACUC,  t);
+    }  
+    /**  Objective */
+    auto obj = product(grid->c1, Pg[0]) + product(grid->c2, power(Pg[0],2)) + sum(grid->c0);
+    ACUC.set_objective(min(obj));
+    for (int t= 0; t < Num_time; t++) {
+        //add_SOCP_Sub_time(ACUC, t);
+        add_SOCP_chord_Sub_time(ACUC, t);
+        add_3d_cuts_static(ACUC,t);
+    }
+    
+    for (int t= 0; t < Num_time; t++) {
+        add_KCL_Sub_time(ACUC, t);
+        Constraint Thermal_Limit_from("Thermal_Limit_from" + to_string(t));
+        Thermal_Limit_from = power(Pf_from[t], 2) + power(Qf_from[t], 2);
+        Thermal_Limit_from <= power(grid->S_max,2);
+        ACUC.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
+        
+        Constraint Thermal_Limit_to("Thermal_Limit_to" + to_string(t));
+        Thermal_Limit_to = power(Pf_to[t], 2) + power(Qf_to[t], 2);
+        Thermal_Limit_to <= power(grid->S_max, 2);
+        ACUC.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
+        
+        Constraint PAD_UB("PAD_UB_"+to_string(t));
+        PAD_UB = Im_Xij[t]- grid->tan_th_max*R_Xij[t];
+        ACUC.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
+        
+        Constraint PAD_LB("PAD_LB_"+to_string(t));
+        PAD_LB = Im_Xij[t]- grid->tan_th_min*R_Xij[t];
+        ACUC.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
+    }
+    
+    /* Solver selection */
+    bool relax = true;
+    int output = 5;
+    solver cpx_acuc(ACUC, ipopt);
+    double tol = 10e-6;
+    cpx_acuc.run(output, relax, tol);
+    cout << "the continuous relaxation bound is: " << ACUC._obj_val << endl;
+}
+
+
 double Global::getdual_relax_time_(bool include) {
     include_min_updown_ = include;
     const auto bus_pairs = grid->get_bus_pairs();
@@ -176,7 +222,7 @@ double Global::getdual_relax_time_(bool include) {
             if (g->_active) {
                 string name = g->_name + ","+ to_string(t);
                 obj += grid->c1(name)*Pg[t](name)+ grid->c2(name)*Pg[t](name)*Pg[t](name) + grid->c0(name)*On_off[t](name);
-                obj += cost_up.getvalue()*Start_up[t](name)+ cost_down.getvalue()*Shut_down[t](name);
+                //obj += cost_up.getvalue()*Start_up[t](name)+ cost_down.getvalue()*Shut_down[t](name);
             }
         }
     }
@@ -351,7 +397,7 @@ double Global::getdual_relax_time_(bool include) {
             }
         }
     }
-    check_rank1_constraint_(ACUC, 0);
+    //check_rank1_constraint_(ACUC, 0);
     return ACUC._obj_val;
 }
 
@@ -835,10 +881,8 @@ void Global::add_SOCP_chord_Sub_time(Model& Sub, int t) {
     //Constraint SOC("SOC_" + to_string(t));
     SOC_[t] = Constraint("SOC_" + to_string(t));
     SOC_[t] =  power(R_Xij[t], 2) + power(Im_Xij[t], 2) - Xii[t].from()*Xii[t].to() ;
-    //SOC_outer_[t] = Sub.add_constraint(SOC_[t].in_at(bus_pairs_chord, t) <= 0);
     SOC_outer_[t] = Sub.add_constraint(SOC_[t].in_at(bus_pairs_chord, t) <= 0);
-    SOC_[t].in_at(bus_pairs_chord, t).print_expanded();
-    //Sub.add_constraint(SOC_[t].in_at(bus_pairs, t) <= 0);
+    //SOC_[t].in_at(bus_pairs_chord, t).print_expanded();
 }
 
 void Global::add_SOCP_Outer_Sub_time(Model& Sub, int t) {
@@ -1453,7 +1497,8 @@ vector<int> Global::check_rank1_constraint_(Model& Sub, int t) {
     auto soc = Sub.get_constraint("SOC_"+to_string(t));
     vector<int> violations;
     string name;
-    for (int p = 0; p < grid->get_bus_pairs().size(); p++) {
+    //for (int p = 0; p < grid->get_bus_pairs().size(); p++) {
+    for (int p = 0; p < grid->get_bus_pairs_chord().size(); p++) {
         double eval = soc->eval(p);
         Debug("soc["<<p <<"]=" << eval << endl);
         if (eval < -1e-6) {
@@ -1654,20 +1699,64 @@ void Global::add_3d_cuts_static(Model& model, int t) {
         Im_Xij_[i]._name += to_string(i);
         Xii_[i] = Xii[t].in(keyii[i]);
         Xii_[i]._name += to_string(i);
-        Xii[i]._unique_id = make_tuple<>(Xii_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
-        R_Xij_[i]._unique_id = make_tuple<>(R_Xij_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
-        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
+        Xii[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+        R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
     }
-    Constraint sdpcut("3dcuts"+to_string(t));
-    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
-    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
-    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
-    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
-    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
-    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
+    
+    string name0, name1, name2;
+   // for (int i = 0; i < 3; i++){
+        Constraint sdpcut("3dcuts_"+to_string(t) + "," + to_string(0));
+//    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
+//    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
+//    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
+//    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
+//    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
+//    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
+    name0 ="1,4,0";
+    name1 = "4,5,0";
+    name2 = "1,5,0";
+    
+    sdpcut = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
+    sdpcut += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
+    sdpcut -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("5,0");
+    sdpcut -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
+    sdpcut -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("4,0");
+    sdpcut += Xii[t]("1,0")*Xii[t]("4,0")*Xii[t]("5,0");
+    //sdpcut = 2.0*R_Xij_[0](name0)*(R_Xij_[1](name1)*R_Xij_[2](name2) +Im_Xij_[1](name1)*Im_Xij_[2](name2));
+    //sdpcut += 2.0*Im_Xij_[0](name0)*(R_Xij_[1](name1)*Im_Xij_[2](name2) -Im_Xij_[1](name1)*R_Xij_[2](name2));
+    //sdpcut -= (power(R_Xij_[0](name0), 2) + power(Im_Xij_[0](name0), 2)) * Xii_[2]("5,0");
+    //sdpcut -= (power(R_Xij_[1](name1), 2) + power(Im_Xij_[1](name1), 2)) * Xii_[0]("1,0");
+    //sdpcut -= (power(R_Xij_[2](name2), 2) + power(Im_Xij_[2](name2), 2)) * Xii_[1]("4,0");
+    //sdpcut += Xii_[0]("1,0")*Xii_[1]("4,0")*Xii_[2]("5,0");
     
     DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
     sdpcut.print_expanded();
     model.add_constraint(sdpcut <= 0);
+    Constraint sdpcut1("3dcuts_"+to_string(t) + "," + to_string(1));
+    name0 ="2,3,0";
+    name1 = "3,4,0";
+    name2 = "2,4,0";
+    
+    sdpcut1 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
+    sdpcut1 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
+    sdpcut1 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
+    sdpcut1 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("2,0");
+    sdpcut1 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("3,0");
+    sdpcut1 += Xii[t]("2,0")*Xii[t]("3,0")*Xii[t]("4,0");
+    model.add_constraint(sdpcut1 <= 0);
 
+    Constraint sdpcut2("3dcuts_"+to_string(t) + "," + to_string(2));
+    name0 ="1,2,0";
+    name1 = "2,4,0";
+    name2 = "1,4,0";
+    
+    sdpcut2 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
+    sdpcut2 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
+    sdpcut2 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
+    sdpcut2 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
+    sdpcut2 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("2,0");
+    sdpcut2 += Xii[t]("1,0")*Xii[t]("2,0")*Xii[t]("4,0");
+    model.add_constraint(sdpcut2 <= 0);
+//}
 }

@@ -98,6 +98,7 @@ public:
     
     
     double getdual_relax_time_(bool include);
+    double solve_sdpcut_opf_();
     double LR_bound_time_(bool included_min_up_down);
     double Upper_bound_sequence_(bool included_min_up_down);
     double Subproblem_time_(int l);
