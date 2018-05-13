@@ -1635,118 +1635,36 @@ std::vector<std::vector<string>> Global::get_3ddiagon_index(const std::vector<st
     }
     return res;
 }
-//vector<param<>> signs(Net& net, const std::vector<std::vector<Node*>>& bags) {
-//    vector<param<>> res;
-//    string key;
-//    size_t idx;
-//    res.resize(3);
-//    for (int i = 0; i<3; i++) {
-//        res[i].set_name("I_sign_"+to_string(i));
-//    }
-//    set<vector<unsigned>> ids;
-//    for (auto &bag: net._bags) {
-//        if (bag.size() != 3) {
-//            continue;
-//        }
-//        vector<unsigned> ids_bag;
-//        for (int i = 0; i<3; i++) {
-//            ids_bag.push_back(bag[i]->_id);
-//        }
-//        if(ids.count(ids_bag)==0) {
-//            ids.insert(ids_bag);
-//        } else {
-//            continue;
-//        }
-//        for (int i = 0; i< 2; i++) {
-//            if(net.has_directed_arc(bag[i], bag[i+1])) {
-//                key = bag[i]->_name + "," + bag[i+1]->_name;
-//                idx = res[i].set_val(key,1.0); //
-//                res[i]._ids->at(0).push_back(idx);
-//            }
-//            else {
-//                key = bag[i+1]->_name + "," + bag[i]->_name;
-//                DebugOff("\nreversed arc " << key);
-//                idx = res[i].set_val(key,-1.0);
-//                res[i]._ids->at(0).push_back(idx);
-//            }
-//        }
-//        /* Loop back pair */
-//        if(net.has_directed_arc(bag[0], bag[2])) {
-//            key = bag[0]->_name + "," + bag[2]->_name;
-//            idx = res[2].set_val(key,1.0);
-//            res[2]._ids->at(0).push_back(idx);
-//        }
-//        else{
-//            key = bag[2]->_name + "," + bag[0]->_name;
-//            DebugOff("\nreversed arc " << key);
-//            idx = res[2].set_val(key,-1.0);
-//            res[2]._ids->at(0).push_back(idx);
-//        }
-//    }
-//    for (int i = 0; i<3; i++) {
-//        res[i]._dim[0]=res[i]._ids->at(0).size();
-//        res[i]._is_indexed = true;
-//    }
-//    return res;
-//}
-
 
 //void Global::add_3d_cuts_(Model& model, vector<int> indices, int t){
 void Global::add_3d_cuts_static(Model& model, int t) {
     auto keys = get_3dmatrix_index(chordal, grid->_bags, t);
     auto keyii = get_3ddiagon_index(grid->_bags, t);
-    auto R_Xij_0 = R_Xij[t].in(keys[0]);
-    R_Xij_0._name += "_0";
-    auto R_Xij_1 = R_Xij[t].in(keys[1]);
-    R_Xij_1._name += "_1";
-    auto R_Xij_2 = R_Xij[t].in(keys[2]);
-    R_Xij_2._name += "_2";
-    auto Im_Xij_0 = Im_Xij[t].in(keys[0]);
-    Im_Xij_0._name += "_0";
-    auto Im_Xij_1 = Im_Xij[t].in(keys[1]);
-    Im_Xij_1._name += "_1";
-    auto Im_Xij_2 = Im_Xij[t].in(keys[2]);
-    Im_Xij_2._name += "_2";
-    auto Xii_0 = Xii[t].in(keyii[0]);
-    Xii_0._name += "_0";
-    auto Xii_1 = Xii[t].in(keyii[1]);
-    Xii_1._name += "_1";
-    auto Xii_2 = Xii[t].in(keyii[2]);
-    Xii_2._name += "_2";
-
-    //auto Xii_ = Xii[t].in(grid->_bags, 3);
+    vector<var<Real>> R_Xij_;
+    vector<var<Real>> Im_Xij_;
+    vector<var<Real>> Xii_;
+    R_Xij_.resize(3);
+    Im_Xij_.resize(3);
+    Xii_.resize(3);
+    for (int i = 0; i < 3; i++){
+        R_Xij_[i] = R_Xij[t].in(keys[i]);
+        R_Xij_[i]._name += to_string(i);
+        Im_Xij_[i] = Im_Xij[t].in(keys[i]);
+        Im_Xij_[i]._name += to_string(i);
+        Xii_[i] = Xii[t].in(keyii[i]);
+        Xii_[i]._name += to_string(i);
+        Xii[i]._unique_id = make_tuple<>(Xii_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
+        R_Xij_[i]._unique_id = make_tuple<>(R_Xij_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
+        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
+    }
     Constraint sdpcut("3dcuts"+to_string(t));
-//    for (int  i = 0; i < 3; i++){
-//        cout << "key " << i <<" ";
-//        for (auto key: keys[i]){
-//            cout << key << "   " ;
-//        }
-//        cout << endl;
-//    }
-//    
-//    for (int  i = 0; i < 3; i++){
-//        cout << "Xii_key " << i <<" ";
-//        for (auto key: keyii[i]){
-//            cout << key << "   " ;
-//        }
-//        cout << endl;
-//    }
-    //sdpcut =  2*R_Xij[t].in(keys[2])*(R_Xij[t].in(keys[0])*R_Xij[t].in(keys[1])-Im_Xij[t].in(keys[0])*Im_Xij[t].in(keys[1]));
-    //sdpcut += 2*Im_Xij[t].in(keys[2])*(R_Xij[t].in(keys[0])*Im_Xij[t].in(keys[1])+ Im_Xij[t].in(keys[0])*R_Xij[t].in(keys[1]));
-    //sdpcut =  2*R_Xij[t].in(keys[0])*(R_Xij[t].in(keys[1])*R_Xij[t].in(keys[2]) + Im_Xij[t].in(keys[1])*Im_Xij[t].in(keys[2]));
-    //sdpcut += 2*Im_Xij[t].in(keys[0])*(R_Xij[t].in(keys[1])*Im_Xij[t].in(keys[2])- Im_Xij[t].in(keys[1])*R_Xij[t].in(keys[2]));
-    //sdpcut -= (power(R_Xij[t].in(keys[0]), 2) + power(Im_Xij[t].in(keys[0]), 2))*Xii[t].in(keyii[2]);
-    //sdpcut -= (power(R_Xij[t].in(keys[1]), 2) + power(Im_Xij[t].in(keys[1]), 2))*Xii[t].in(keyii[0]);
-    //sdpcut -= (power(R_Xij[t].in(keys[2]), 2) + power(Im_Xij[t].in(keys[2]), 2))*Xii[t].in(keyii[1]);
-    //sdpcut += Xii[t].in(keyii[0])*Xii[t].in(keyii[1])*Xii[t].in(keyii[2]);
-    //sdpcut.print(0);
-    sdpcut =  2*R_Xij_0*(R_Xij_1*R_Xij_2 + Im_Xij_1 * Im_Xij_2);
-    sdpcut += 2*Im_Xij_0*(R_Xij_1*Im_Xij_2 -Im_Xij_1 * R_Xij_2);
-    sdpcut -= (power(R_Xij_0, 2) + power(Im_Xij_0, 2)) * Xii_2;
-    sdpcut -= (power(R_Xij_1, 2) + power(Im_Xij_1, 2)) * Xii_0;
-    sdpcut -= (power(R_Xij_2, 2) + power(Im_Xij_2, 2)) * Xii_1;
-    sdpcut += Xii_0*Xii_1*Xii_2;
+    sdpcut =  2*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
+    sdpcut += 2*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
+    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
+    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
+    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
+    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
     DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
-    sdpcut.print(0);
+    sdpcut.print_expanded();
     model.add_constraint(sdpcut <= 0);
 }
