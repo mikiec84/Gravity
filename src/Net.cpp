@@ -706,12 +706,11 @@ vector<Node*> Net::get_PEO(bool print_bags) {
         vector<Node*> bag_copy;
         vector<Node*> bag;
         Debug("new bag = { ");
-        vector<Node*> N = n->get_neighbours();
-        for (auto iter = N.begin(); iter != N.end(); ++iter) {
-            nn = *iter;
+        for (const auto& nn: n->get_neighbours()) {
+            if(!nn->_active) continue;
             bag_copy.push_back(nn);
             bag.push_back(get_node(nn->_name)); // Note it takes original node.
-            Debug(nn->_name << ", ");
+            DebugOn(nn->_name << ", ");
         }
         graph_clone->remove_end_node();
         bag_copy.push_back(n);
@@ -791,15 +790,15 @@ Net* Net::get_chordal_extension() {
         Debug(_clone->nodes.size() << endl);
         vector<Node*> bag_copy;
         vector<Node*> bag;
-        Debug("new bag_copy = { ");
+        DebugOn("new bag_copy = { ");
 
-        vector<Node*> N = n->get_neighbours();
-        for (auto iter = N.begin(); iter != N.end(); ++iter) {
-            nn = *iter;
+        for (const auto& nn: n->get_neighbours()) {
+            if(!nn->_active) continue;
             bag_copy.push_back(nn);
             bag.push_back(get_node(nn->_name)); // Note it takes original node.
-            Debug(nn->_name << ", ");
+            DebugOn(nn->_name << ", ");
         }
+        DebugOn(n->_name << "}\n");
         graph_clone->remove_end_node();
         bag_copy.push_back(n);
         bag.push_back(get_node(n->_name)); // node in this graph

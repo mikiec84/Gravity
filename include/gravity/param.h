@@ -873,7 +873,8 @@ public:
             if(pp.second) { //new index inserted
                 _val->resize(max(_val->size(),index+1));
                 _dim[0] = max(_dim[0],_val->size());
-                _rev_indices->resize(_val->size());
+                //_rev_indices->resize(_val->size());
+                _rev_indices->resize(max(param_::_rev_indices->size(),index+1));
                 _rev_indices->at(index) = key;
                 res._ids->at(0).push_back(index);
             }

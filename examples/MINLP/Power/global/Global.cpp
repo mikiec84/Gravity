@@ -90,9 +90,9 @@ Global::Global(PowerNet* net, int parts, int T) {
     }
     //Lifted variables.
     for (int t = 0; t < T; t++) {
-        var<Real>  R_Xijt("R_Wij" + to_string(t), grid->wr_min.in_at(bus_pairs_chord, t), grid->wr_max.in_at(bus_pairs_chord, t)); // real part of Wij
-        var<Real>  Im_Xijt("Im_Wij" + to_string(t), grid->wi_min.in_at(bus_pairs_chord, t), grid->wi_max.in_at(bus_pairs_chord, t));
-        var<Real>  Xiit("Wii" + to_string(t), grid->w_min.in_at(grid->nodes,t), grid->w_max.in_at(grid->nodes,t));
+        var<Real>  R_Xijt("R_Xij" + to_string(t), grid->wr_min.in_at(bus_pairs_chord, t), grid->wr_max.in_at(bus_pairs_chord, t)); // real part of Wij
+        var<Real>  Im_Xijt("Im_Xij" + to_string(t), grid->wi_min.in_at(bus_pairs_chord, t), grid->wi_max.in_at(bus_pairs_chord, t));
+        var<Real>  Xiit("Xii" + to_string(t), grid->w_min.in_at(grid->nodes,t), grid->w_max.in_at(grid->nodes,t));
         R_Xijt.initialize_all(1.0);
         Xiit.initialize_all(1.001);
         //R_Xij.push_back(R_Xijt.in_at(bus_pairs_chord, t));
@@ -837,6 +837,7 @@ void Global::add_SOCP_chord_Sub_time(Model& Sub, int t) {
     SOC_[t] =  power(R_Xij[t], 2) + power(Im_Xij[t], 2) - Xii[t].from()*Xii[t].to() ;
     //SOC_outer_[t] = Sub.add_constraint(SOC_[t].in_at(bus_pairs_chord, t) <= 0);
     SOC_outer_[t] = Sub.add_constraint(SOC_[t].in_at(bus_pairs_chord, t) <= 0);
+    SOC_[t].in_at(bus_pairs_chord, t).print_expanded();
     //Sub.add_constraint(SOC_[t].in_at(bus_pairs, t) <= 0);
 }
 
@@ -1658,13 +1659,15 @@ void Global::add_3d_cuts_static(Model& model, int t) {
         Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij_[i].get_id(),in_,typeid(Real).hash_code(), 0, i);
     }
     Constraint sdpcut("3dcuts"+to_string(t));
-    sdpcut =  2*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
-    sdpcut += 2*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
+    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
+    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
     sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
     sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
     sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
     sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
+    
     DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
     sdpcut.print_expanded();
     model.add_constraint(sdpcut <= 0);
+
 }
