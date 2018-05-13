@@ -779,6 +779,7 @@ void PowerNet::update_update_bus_pairs_chord(Net* chordal) {
     double wr_max_, wr_min_, wi_max_, wi_min_, w_max_, w_min_;
     for(auto& k: _bus_pairs._keys) {
         _bus_pairs_chord._keys.push_back(new index_pair(*k));
+        //_bus_pairs_chord._keys.push_back(k);
     }
    // auto chordal = get_chordal_extension();
 

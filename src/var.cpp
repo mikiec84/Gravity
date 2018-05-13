@@ -422,7 +422,7 @@ template<typename type>vector<var<type>> var<type>::pairs_in_directed(Net& net, 
         if (bag.size() != size) {
             continue;
         }
-        vector<unsigned> ids_bag;
+        vector<unsigned> ids_bag; // avoid redudant bags. 
         for (int i = 0; i<size; i++) {
             ids_bag.push_back(bag[i]->_id);
         }
