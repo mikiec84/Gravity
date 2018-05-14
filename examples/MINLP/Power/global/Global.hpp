@@ -30,7 +30,7 @@ public:
     param<Real> cost_up;
     param<Real> cost_down;
     param<Real> Pg_initial;
-    param<bool> On_off_initial;
+    param<Real> On_off_initial;
     // Variables 
     vector<var<Real>> Pg;
     vector<var<Real>> Pg2; // new var introduced for the perspective formulation.

@@ -116,13 +116,13 @@ Global::Global(PowerNet* net, int parts, int T) {
     // Commitment variables
     for (int t = 0; t < T; t++) {
         //var<bool>  On_offt("On_off_" + to_string(t), 0, 1);
-        var<>  On_offt("On_off_" + to_string(t), 0, 1);
+        var<Real>  On_offt("On_off_" + to_string(t), 0, 1);
         //var<Real>  Start_upt("Start_up_" + to_string(t));
         //var<Real>  Shut_downt("Shut_down_" + to_string(t));
         //var<bool>  Start_upt("Start_up_" + to_string(t));
         //var<bool>  Shut_downt("Shut_down_" + to_string(t));
-        var<>  Start_upt("Start_up_" + to_string(t), 0, 1);
-        var<>  Shut_downt("Shut_down_" + to_string(t), 0, 1);
+        var<Real>  Start_upt("Start_up_" + to_string(t), 0, 1);
+        var<Real>  Shut_downt("Shut_down_" + to_string(t), 0, 1);
         //On_off.push_back(On_offt.in_at(grid->gens, t-1));
         //Start_up.push_back(Start_upt.in_at(grid->gens, t));
         //Shut_down.push_back(Shut_downt.in_at(grid->gens, t));
@@ -205,6 +205,7 @@ double Global::solve_sdpcut_opf_(){
     double tol = 10e-6;
     cpx_acuc.run(output, relax, tol);
     cout << "the continuous relaxation bound is: " << ACOPF._obj_val << endl;
+    return ACOPF._obj_val;
 }
 
 
@@ -230,7 +231,9 @@ double Global::getdual_relax_time_(bool include) {
     for (int t= 0; t < Num_time; t++) {
         //add_SOCP_Sub_time(ACUC, t);
         add_SOCP_chord_Sub_time(ACUC, t);
-        //add_3d_cuts_static(ACUC,t);
+        if (grid->add_3d_nlin){
+            add_3d_cuts_static(ACUC,t);
+        }
     }
 
     for (int t= 0; t < Num_time; t++) {
@@ -334,8 +337,19 @@ double Global::getdual_relax_time_(bool include) {
     /* Solver selection */
     bool relax = true;
     int output = 5;
-   // solver cpx_acuc(ACUC, cplex);
-    solver cpx_acuc(ACUC, ipopt);
+    bool useipopt=true;
+    SolverType st;
+    if (grid->add_3d_nlin){
+        st = ipopt;
+    }
+    else{
+        st = cplex;
+        useipopt = false;
+    }
+    solver cpx_acuc(ACUC, st);
+    //useipopt = true;
+    //solver cpx_acuc(ACUC, ipopt);
+    //solver cpx_acuc(ACUC, cplex);
     double tol = 10e-6;
     cpx_acuc.run(output, relax, tol);
     cout << "the continuous relaxation bound is: " << ACUC._obj_val << endl;
@@ -347,35 +361,44 @@ double Global::getdual_relax_time_(bool include) {
                 string name = g->_name + "," + to_string(t);
                 lambda_up(name) = abs(MC1->_dual.at(0));
                 lambda_down(name) = abs(MC2->_dual.at(0));
-                DebugOff("dual of  lambda_up_" << name << " " << abs(MC1->_dual[0]) << endl);
-                DebugOff("dual of  lambda_down_" << name << " " << abs(MC2->_dual[0]) << endl);
+                //lambda_up(name) = (MC1->_dual.at(0));
+                //lambda_down(name) = (MC2->_dual.at(0));
+                Debug("dual of  lambda_up_" << name << " " << lambda_up(name).eval() << endl);
+                Debug("dual of  lambda_down_" << name << " " << lambda_down(name).eval() << endl);
             }
         }
     }
     // we do not relax first step constraint
-//    for (int t = 1; t < Num_time; t++) {
-//        for (auto& g: grid->gens) {
-//            if (g->_active) {
-//                auto Ramp_up = ACUC.get_constraint("Ramp_up_constraint_" + to_string(t) + "," + g->_name);
-//                string name = g->_name +","+ to_string(t);
-//                zeta_up(name) = abs(Ramp_up->_dual.at(0));
-//
-//                auto Ramp_down = ACUC.get_constraint("Ramp_down_constraint_"  + to_string(t)+"," + g->_name);
-//                zeta_down(name) = abs(Ramp_down->_dual.at(0));
-//
-//                DebugOff("dual of  zeta_up_" << name << " " << abs(Ramp_up->_dual[0]) << endl);
-//                DebugOff("dual of  zeta_down_" << name << " " << abs(Ramp_down->_dual[0]) << endl);
-//            }
-//        }
-//    }
+    for (int t = 1; t < Num_time; t++) {
+        for (auto& g: grid->gens) {
+            if (g->_active) {
+                auto Ramp_up = ACUC.get_constraint("Ramp_up_constraint_" + to_string(t) + "," + g->_name);
+                string name = g->_name +","+ to_string(t);
+                zeta_up(name) = abs(Ramp_up->_dual.at(0));
+                //zeta_up(name) = (Ramp_up->_dual.at(0));
+
+                auto Ramp_down = ACUC.get_constraint("Ramp_down_constraint_"  + to_string(t)+"," + g->_name);
+                zeta_down(name) = abs(Ramp_down->_dual.at(0));
+                //zeta_down(name) = (Ramp_down->_dual.at(0));
+
+                Debug("dual of  zeta_up_" << name << " " << zeta_up(name).eval() << endl);
+                Debug("dual of  zeta_down_" << name << " " << zeta_up(name).eval() << endl);
+            }
+        }
+    }
     // we do not relax first step constraint
     for (int t= 1; t < Num_time; t++) {
         for (auto& g: grid->gens) {
             if (g->_active) {
                 auto OOSS  = ACUC.get_constraint("OnOffStartupShutdown_"+ to_string(t) + ","+ g->_name);
                 string name = g->_name + "," + to_string(t);
-                DebugOff("mu: " << -OOSS->_dual.at(0)  << endl);
-                mu(name) = -OOSS->_dual.at(0); // when positive and when negative?
+                if (useipopt){
+                    mu(name) = OOSS->_dual.at(0); // when positive and when negative?
+                }
+                else{
+                    mu(name) = -OOSS->_dual.at(0); // when positive and when negative?
+                }
+                Debug("mu: " <<mu(name).eval() << endl);
             }
         }
     }
@@ -397,10 +420,9 @@ double Global::getdual_relax_time_(bool include) {
             }
         }
     }
-    //check_rank1_constraint_(ACUC, 0);
+    check_rank1_constraint_(ACUC, 0);
     return ACUC._obj_val;
 }
-
 
 double Global::getdual_relax_spatial() {
     R_Xij.clear();
@@ -688,8 +710,8 @@ double Global::getdual_relax_spatial() {
         ACUC.add_constraint(Link_Xii.in(a->_intersection_clique, Num_time)==0);
     }
     /* Solver selection */
-    solver cpx_acuc(ACUC, cplex);
-    //solver cpx_acuc(ACUC, ipopt);
+    //solver cpx_acuc(ACUC, cplex);
+    solver cpx_acuc(ACUC, ipopt);
     bool relax =true;
     int output = 1;
     double tol = 1e-6;
@@ -743,7 +765,6 @@ void Global::add_var_Sub_time(Model& Sub, int t) {
 }
 
 void Global::add_obj_Sub_time(gravity::Model& Sub, int t) {
-    // great
     func_ obj;
     if (t == 0) {
         for (auto g:grid->gens) {
@@ -805,7 +826,6 @@ void Global::add_obj_Sub_time(gravity::Model& Sub, int t) {
                 obj += (grid->c1(name) + zeta_up(name)+zeta_down(name1)- zeta_down(name)-zeta_up(name1))*Pg[t](name)
                        + grid->c2(name)*Pg2[t](name);
                 //obj += (grid->c1(name))*Pg[t](name)+ grid->c2(name)*Pg2[t](name);
-
                 //obj += (grid->c0(name)+lambda_up(name) -lambda_up(name1) + lambda_down(name1) -lambda_down(name)+ mu(name) - mu(name1))*On_off[t](name);
                 obj += (grid->c0(name)+lambda_up(name) -lambda_up(name1) + lambda_down(name1) -lambda_down(name)
                         - zeta_down(name)*rate_ramp(name) - zeta_up(name1)*rate_ramp(name1)
@@ -1073,11 +1093,12 @@ double Global::Subproblem_time_(int t) {
     Model Sub("Sub_" + to_string(t));
     add_var_Sub_time(Sub, t);
     add_obj_Sub_time(Sub, t);
-    //add_perspective_OnOff_Sub_time(Sub, t);
+    add_perspective_OnOff_Sub_time(Sub, t);
+    //add_SOCP_Sub_time(Sub, t);
     add_SOCP_Sub_time(Sub, t);
-    //add_BenNem_SOCP_time(Sub, t, 12);
-    //add_BenNem_SOCP_time(Sub, t, 8);
-    //add_SOCP_Outer_Sub_time(Sub, t);
+    if (grid->add_3d_nlin){
+        add_3d_cuts_static(Sub,t);
+    }
     add_KCL_Sub_time(Sub, t);
     add_thermal_Sub_time(Sub, t);
     add_MC_upper_Sub_time(Sub, t);
@@ -1117,8 +1138,17 @@ double Global::Subproblem_time_(int t) {
         }
     }
     /* Solver selection */
-    solver cpx_acuc(Sub, cplex);
-    bool relax = false;
+    
+    SolverType st;
+    if (grid->add_3d_nlin){
+        st = ipopt;
+    }
+    else{
+        st = cplex;
+    }
+    solver cpx_acuc(Sub, st);
+
+    bool relax = true;
     int output = 1;
     double tol = 1e-6;
     cpx_acuc.run(output, relax, tol);
@@ -1138,16 +1168,7 @@ double Global::Subproblem_time_(int t) {
             Shut_down_sol_[t](name) = Shut_down[t](name).eval();
             Pg_sol_[t](name) = Pg[t](name).eval();
         }
-        //Start_up_sol_[t].print(true);
-        //Shut_down_sol_[t].print(true);
-        //On_off_sol_[t].print(true);
-        //On_off_sol_[t].print(true);
-        //Start_up_sol_[t] = *(param<bool>*)(Sub.get_var("Start_up_"+to_string(t)+".in_at_" + to_string(t) + "Gen"));
-        //Start_up_sol_[t].print(true);
-        //Shut_down_sol_[t] = *(param<bool>*)(Sub.get_var("Shut_down_"+to_string(t)+".in_at_" + to_string(t) + "Gen"));
-        //Shut_down_sol_[t].print(true);
-        //Pg_sol_[t] = *(param<Real>*)(Sub.get_var("Pg_"+to_string(t)+".in_at_" + to_string(t) + "Gen"));
-        //Pg_sol_[t].print(true);
+        
     }
     //check_rank1_constraint_(Sub, t);
     return Sub._obj_val;
@@ -1699,63 +1720,16 @@ void Global::add_3d_cuts_static(Model& model, int t) {
         Im_Xij_[i]._name += to_string(i);
         Xii_[i] = Xii[t].in(keyii[i]);
         Xii_[i]._name += to_string(i);
-        Xii[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+        Xii_[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
         R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
         Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
     }
-    Constraint sdpcut("3dcuts_"+to_string(t));
+    Constraint sdpcut("3dcuts_");
     sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
     sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
     sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
     sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
     sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
     sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
-    DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
-    sdpcut.print_expanded();
-    model.add_constraint(sdpcut <= 0);
-    
-//    string name0, name1, name2;
-//    Constraint sdpcut("3dcuts_"+to_string(t) + "," + to_string(0));
-//    name0 ="1,4,0";
-//    name1 = "4,5,0";
-//    name2 = "1,5,0";
-//    
-//    sdpcut = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
-//    sdpcut += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
-//    sdpcut -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("5,0");
-//    sdpcut -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
-//    sdpcut -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("4,0");
-//    sdpcut += Xii[t]("1,0")*Xii[t]("4,0")*Xii[t]("5,0");
-//    DebugOn("\nsdp nb inst = " << sdpcut.get_nb_instances() << endl);
-//    sdpcut.print_expanded();
-//    model.add_constraint(sdpcut <= 0);
-//    Constraint sdpcut1("3dcuts_"+to_string(t) + "," + to_string(1));
-//    name0 ="2,3,0";
-//    name1 = "3,4,0";
-//    name2 = "2,4,0";
-//    
-//    sdpcut1 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
-//    sdpcut1 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
-//    sdpcut1 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
-//    sdpcut1 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("2,0");
-//    sdpcut1 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("3,0");
-//    sdpcut1 += Xii[t]("2,0")*Xii[t]("3,0")*Xii[t]("4,0");
-//    model.add_constraint(sdpcut1 <= 0);
-//
-//    Constraint sdpcut2("3dcuts_"+to_string(t) + "," + to_string(2));
-//    name0 ="1,2,0";
-//    name1 = "2,4,0";
-//    name2 = "1,4,0";
-//    
-//    Xii[t].print(true);
-//    R_Xij[t].print(true);
-//    Im_Xij[t].print(true);
-//    sdpcut2 = 2.0*R_Xij[t](name0)*(R_Xij[t](name1)*R_Xij[t](name2) +Im_Xij[t](name1)*Im_Xij[t](name2));
-//    sdpcut2 += 2.0*Im_Xij[t](name0)*(R_Xij[t](name1)*Im_Xij[t](name2) -Im_Xij[t](name1)*R_Xij[t](name2));
-//    sdpcut2 -= (power(R_Xij[t](name0), 2) + power(Im_Xij[t](name0), 2)) * Xii[t]("4,0");
-//    sdpcut2 -= (power(R_Xij[t](name1), 2) + power(Im_Xij[t](name1), 2)) * Xii[t]("1,0");
-//    sdpcut2 -= (power(R_Xij[t](name2), 2) + power(Im_Xij[t](name2), 2)) * Xii[t]("2,0");
-//    sdpcut2 += Xii[t]("1,0")*Xii[t]("2,0")*Xii[t]("4,0");
-//    model.add_constraint(sdpcut2 <= 0);
-//}
+    model.add_constraint(sdpcut >= 0);
 }

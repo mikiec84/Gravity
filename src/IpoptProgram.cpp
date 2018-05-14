@@ -55,6 +55,7 @@ void IpoptProgram::finalize_solution(Ipopt::SolverReturn             status    ,
         for (unsigned inst = 0; inst < cp.second->_nb_instances; inst++) {
             if (!*cp.second->_all_lazy || !cp.second->_lazy[inst]) {
                 cp.second->_dual[inst] = lambda[cp.second->_id + idx++];
+                Debug("lambda[" <<cp.second->_id + idx<< "]: " << cp.second->_dual[inst] << endl);
             }
         }
     }

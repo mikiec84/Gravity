@@ -783,11 +783,11 @@ void Model::fill_in_var_bounds(double* x_l ,double* x_u) {
             }
             case double_:{
                 auto real_var = (var<double>*)v;
-                DebugOn(real_var->get_name() << " in:" << endl);
+                Debug(real_var->get_name() << " in:" << endl);
                 for (int i = 0; i < real_var->get_dim(); i++) {
                     x_l[vid+i] = real_var->get_lb(i);
                     x_u[vid+i] = real_var->get_ub(i);
-                    DebugOn("(" << i << ")" << " : [" << x_l[vid+i] << "," << x_u[vid+i] << "]\n");
+                    Debug("(" << i << ")" << " : [" << x_l[vid+i] << "," << x_u[vid+i] << "]\n");
                 }
                 DebugOff(";" << endl);
                 break;
