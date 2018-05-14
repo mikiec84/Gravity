@@ -81,6 +81,7 @@ int main (int argc, char * argv[])
     //string fname = "../data_sets/Power/nesta_case5_pjm.m";
     //string fname = "../data_sets/Power/nesta_case14_ieee.m";
     string fname = "../data_sets/Power/nesta_case300_ieee.m";
+    //string fname = "../data_sets/Power/nesta_case118_ieee.m";
 
     
     string path = argv[0];
@@ -130,7 +131,7 @@ int main (int argc, char * argv[])
     DebugOn("nb buses = " << nb_buses << endl);
     DebugOn("nb bus_pairs = " << nb_bus_pairs << endl);
     
-    grid.get_tree_decomp_bags();
+    //grid.get_tree_decomp_bags();
     auto chordal = grid.get_chordal_extension();
     grid.update_update_bus_pairs_chord(chordal);
     
