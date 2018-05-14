@@ -54,8 +54,4 @@ public:
     
     std::vector<gravity::index_pair*> get_intersection_clique();
 };
-
-
-
-
 #endif

@@ -244,7 +244,6 @@ int main (int argc, char * argv[])
     LNC2 += grid.v_min.from()*grid.v_min.to()*grid.cos_d*(grid.v_min.from()*grid.v_min.to() - grid.v_max.from()*grid.v_max.to());
     SOCP.add(LNC2.in(bus_pairs) >= 0);
     
-    
 //    auto keys = get_3dmatrix_index(chordal, grid._bags);
 //    auto keyii = get_3ddiagon_index(grid._bags);
 //    vector<var<Real>> R_Wij_;
@@ -264,7 +263,6 @@ int main (int argc, char * argv[])
 //        R_Wij_[i]._unique_id = make_tuple<>(R_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
 //        Im_Wij_[i]._unique_id = make_tuple<>(Im_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
 //    }
-    Wii.print(true);
     Constraint sdpcut("3dcuts_");
 //    sdpcut = 2.0*R_Wij_[0]*(R_Wij_[1]*R_Wij_[2] +Im_Wij_[1]*Im_Wij_[2]);
 //    sdpcut += 2.0*Im_Wij_[0]*(R_Wij_[1]*Im_Wij_[2] -Im_Wij_[1]*R_Wij_[2]);
@@ -272,11 +270,11 @@ int main (int argc, char * argv[])
 //    sdpcut -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
 //    sdpcut -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];
     
-        string name0 ="1,4";
-        string name1 = "4,5";
-        string name2 = "1,5";
+    string name0 ="1,4";
+    string name1 = "4,5";
+    string name2 = "1,5";
     
-    sdpcut += 2.0*R_Wij(name0)*(R_Wij(name1)*R_Wij(name2) +Im_Wij(name1)*Im_Wij(name2));
+    sdpcut = 2.0*R_Wij(name0)*(R_Wij(name1)*R_Wij(name2) +Im_Wij(name1)*Im_Wij(name2));
     sdpcut += 2.0*Im_Wij(name0)*(R_Wij(name1)*Im_Wij(name2)-Im_Wij(name1)*R_Wij(name2));
     sdpcut -= power(R_Wij(name0), 2)*Wii("5") + power(Im_Wij(name0), 2)*Wii("5");
     sdpcut -= power(R_Wij(name1), 2)*Wii("1") + power(Im_Wij(name1), 2)*Wii("1");
@@ -287,27 +285,26 @@ int main (int argc, char * argv[])
     SOCP.add_constraint(sdpcut <= 0);
     
     Constraint sdpcut1("3dcuts1_");
-
-        name0 ="2,3";
-        name1 = "3,4";
-        name2 = "2,4";
+    name0 ="2,3";
+    name1 = "3,4";
+    name2 = "2,4";
     
     sdpcut1 += 2.0*R_Wij(name0)*(R_Wij(name1)*R_Wij(name2) +Im_Wij(name1)*Im_Wij(name2));
     sdpcut1 += 2.0*Im_Wij(name0)*(R_Wij(name1)*Im_Wij(name2) -Im_Wij(name1)*R_Wij(name2));
-    sdpcut1 -= (power(R_Wij(name0), 2) + power(Im_Wij(name0), 2)) * Wii("4");
-    sdpcut1 -= (power(R_Wij(name1), 2) + power(Im_Wij(name1), 2)) * Wii("2");
-    sdpcut1 -= (power(R_Wij(name2), 2) + power(Im_Wij(name2), 2)) * Wii("3");
+    sdpcut1 -= 1*(power(R_Wij(name0), 2) + power(Im_Wij(name0), 2)) * Wii("4");
+    sdpcut1 -= 1*(power(R_Wij(name1), 2) + power(Im_Wij(name1), 2)) * Wii("2");
+    sdpcut1 -= 1*(power(R_Wij(name2), 2) + power(Im_Wij(name2), 2)) * Wii("3");
     sdpcut1 += Wii("2")*Wii("3")*Wii("4");
     SOCP.add_constraint(sdpcut1 <= 0);
-        name0 ="1,2";
-        name1 = "2,4";
-        name2 = "1,4";
+    name0 ="1,2";
+    name1 = "2,4";
+    name2 = "1,4";
     Constraint sdpcut2("3dcuts_"+ to_string(2));
     sdpcut2 += 2.0*R_Wij(name0)*(R_Wij(name1)*R_Wij(name2) +Im_Wij(name1)*Im_Wij(name2));
     sdpcut2 += 2.0*Im_Wij(name0)*(R_Wij(name1)*Im_Wij(name2) -Im_Wij(name1)*R_Wij(name2));
-    sdpcut2 -= (power(R_Wij(name0), 2) + power(Im_Wij(name0), 2)) * Wii("4");
-    sdpcut2 -= (power(R_Wij(name1), 2) + power(Im_Wij(name1), 2)) * Wii("1");
-    sdpcut2 -= (power(R_Wij(name2), 2) + power(Im_Wij(name2), 2)) * Wii("2");
+    sdpcut2 -= (power(R_Wij(name0), 2) + power(Im_Wij(name0), 2))*Wii("4");
+    sdpcut2 -= (power(R_Wij(name1), 2) + power(Im_Wij(name1), 2))*Wii("1");
+    sdpcut2 -= (power(R_Wij(name2), 2) + power(Im_Wij(name2), 2))*Wii("2");
     sdpcut2 += Wii("1")*Wii("2")*Wii("4");
     SOCP.add_constraint(sdpcut2 <= 0);
     /* Solver selection */
