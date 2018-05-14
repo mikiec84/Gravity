@@ -130,6 +130,7 @@ int main (int argc, char * argv[])
     DebugOn("nb buses = " << nb_buses << endl);
     DebugOn("nb bus_pairs = " << nb_bus_pairs << endl);
     
+    grid.get_tree_decomp_bags();
     auto chordal = grid.get_chordal_extension();
     grid.update_update_bus_pairs_chord(chordal);
     
