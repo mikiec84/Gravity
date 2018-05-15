@@ -386,6 +386,8 @@ int main (int argc, const char * argv[])
 //    cstr2 <= 2;
 //    cstr2.print();
     
+ 
+    
     var<> x("x"), y("y"), z("z",pos_);
     vector<index_pair> bus_pairs;
     bus_pairs.push_back(index_pair("bus1", "bus2"));
@@ -395,6 +397,12 @@ int main (int argc, const char * argv[])
     SOC.in(bus_pairs) <= 0;
     SOC.print();
 
+    func_ poly;
+    poly = power(x, 2) + power(y, 2) + 2*x*y;
+    auto poly_approx = poly.get_derivative(x);
+    cout << poly_approx.to_str() << endl;
+    poly_approx.print_expanded();
+    poly.print_expanded();
     
 //    auto cc = p*p + q*q;
 //    DebugOn(cc.to_str(true) << endl);

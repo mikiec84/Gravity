@@ -84,6 +84,7 @@ public:
     // SOCP constraints
     vector<Constraint> SOC_;
     vector<shared_ptr<Constraint>> SOC_outer_;
+    vector<shared_ptr<Constraint>> Sdpcut_outer_;
     // cuts due to Chenchen convex hull.
     
     //Constructors
@@ -94,11 +95,13 @@ public:
     // modifiers.
     std::vector<std::vector<string>> get_3dmatrix_index(Net* net, const std::vector<std::vector<Node*>> bag, int t);
     std::vector<std::vector<string>> get_3ddiagon_index(const std::vector<std::vector<Node*>> bag, int t);
-    vector<param<>> signs(Net& net, const std::vector<std::vector<Node*>>& bags);
+    vector<param<>> signs(Net& net, const std::vector<std::vector<Node*>>& bags, int t);
     
     
     double getdual_relax_time_(bool include);
     double solve_sdpcut_opf_();
+    double solve_sdpcut_opf_outer();
+
     double LR_bound_time_(bool included_min_up_down);
     double Upper_bound_sequence_(bool included_min_up_down);
     double Subproblem_time_(int l);
@@ -111,6 +114,9 @@ public:
     void add_SOCP_chord_Sub_time(Model&, int t);
 
     void add_SOCP_Outer_Sub_time(Model&, int t);
+    void add_Sdpcut_Outer_Sub_time(Model&, int t);
+    void add_Sdpcut_Second_order_Sub_time(Model&, int t);
+    
     void add_KCL_Sub_time(Model&, int t);
     void add_thermal_Sub_time(Model& , int t);
     void add_perspective_OnOff_Sub_time(Model&, int t);

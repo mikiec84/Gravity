@@ -10,6 +10,7 @@
 #include "Global.hpp"
 #include <queue>
 #include <algorithm>
+
 Global::Global() {
     rate_ramp.set_name("rate_ramp");
     rate_switch.set_name("rate_switch");
@@ -28,8 +29,10 @@ Global::~Global() {
 
 Global::Global(PowerNet* net, int parts, int T) {
     grid = net;
-    chordal = grid->get_chordal_extension();
-    grid->update_update_bus_pairs_chord(chordal);
+    //chordal = grid->get_chordal_extension();
+    grid->get_tree_decomp_bags();
+    grid->update_net();
+    //grid->update_update_bus_pairs_chord(chordal);
     P_ = new Partition();
     Num_parts = parts;
     if (Num_parts >=1 && Num_parts < grid->nodes.size()) {
@@ -160,6 +163,7 @@ Global::Global(PowerNet* net, int parts, int T) {
     Sub_.resize(T);
     SOC_.resize(T);
     SOC_outer_.resize(T);
+    Sdpcut_outer_.resize(T);
 }
 
 double Global::solve_sdpcut_opf_(){
@@ -167,14 +171,83 @@ double Global::solve_sdpcut_opf_(){
     Model ACOPF("ACOPF Model");
     for (int t = 0; t < Num_time; t++) {
         add_var_Sub_time(ACOPF,  t);
-    }  
+    }
     /**  Objective */
-    auto obj = product(grid->c1, Pg[0]) + product(grid->c2, power(Pg[0],2)) + sum(grid->c0);
+    func_ obj;
+    //auto obj = product(grid->c1, Pg[0]) + product(grid->c2, power(Pg[0],2)) + sum(grid->c0);
+    for (int t = 0; t < 1; t++) {
+        for (auto g:grid->gens) {
+            if (g->_active) {
+                string name = g->_name + ","+ to_string(t);
+                obj += grid->c1(name)*Pg[t](name)+ grid->c2(name)*Pg[t](name)*Pg[t](name) + grid->c0(name);
+            }
+        }
+    }
+
     ACOPF.set_objective(min(obj));
     for (int t= 0; t < Num_time; t++) {
-        //add_SOCP_Sub_time(ACUC, t);
+        //add_SOCP_Sub_time(ACOPF, t);
         add_SOCP_chord_Sub_time(ACOPF, t);
         add_3d_cuts_static(ACOPF,t);
+    }
+    
+    for (int t= 0; t < Num_time; t++) {
+        add_KCL_Sub_time(ACOPF, t);
+        Constraint Thermal_Limit_from("Thermal_Limit_from" + to_string(t));
+        Thermal_Limit_from = power(Pf_from[t], 2) + power(Qf_from[t], 2);
+        Thermal_Limit_from <= power(grid->S_max,2);
+        ACOPF.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
+        
+        Constraint Thermal_Limit_to("Thermal_Limit_to" + to_string(t));
+        Thermal_Limit_to = power(Pf_to[t], 2) + power(Qf_to[t], 2);
+        Thermal_Limit_to <= power(grid->S_max, 2);
+        ACOPF.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
+        
+        Constraint PAD_UB("PAD_UB_"+to_string(t));
+        PAD_UB = Im_Xij[t]- grid->tan_th_max*R_Xij[t];
+        ACOPF.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
+        
+        Constraint PAD_LB("PAD_LB_"+to_string(t));
+        PAD_LB = Im_Xij[t]- grid->tan_th_min*R_Xij[t];
+        ACOPF.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
+    }
+    
+    /* Solver selection */
+    bool relax = true;
+    int output = 5;
+    solver cpx_acuc(ACOPF, ipopt);
+    double tol = 10e-6;
+    cpx_acuc.run(output, relax, tol);
+    cout << "the continuous relaxation bound is: " << ACOPF._obj_val << endl;
+    return ACOPF._obj_val;
+}
+
+
+double Global::solve_sdpcut_opf_outer(){
+    const auto bus_pairs = grid->get_bus_pairs();
+    Model ACOPF("ACOPF Model");
+    for (int t = 0; t < Num_time; t++) {
+        add_var_Sub_time(ACOPF,  t);
+    }
+    /**  Objective */
+    func_ obj;
+    //auto obj = product(grid->c1, Pg[0]) + product(grid->c2, power(Pg[0],2)) + sum(grid->c0);
+    for (int t = 0; t < 1; t++) {
+        for (auto g:grid->gens) {
+            if (g->_active) {
+                string name = g->_name + ","+ to_string(t);
+                obj += grid->c1(name)*Pg[t](name)+ grid->c2(name)*Pg[t](name)*Pg[t](name) + grid->c0(name);
+            }
+        }
+    }
+    
+    ACOPF.set_objective(min(obj));
+    for (int t= 0; t < Num_time; t++) {
+        //add_SOCP_Sub_time(ACOPF, t);
+        add_SOCP_chord_Sub_time(ACOPF, t);
+        //add_3d_cuts_static(ACOPF,t);
+        //add_Sdpcut_Outer_Sub_time(ACOPF, t);
+        add_Sdpcut_Second_order_Sub_time(ACOPF, t);
     }
     
     for (int t= 0; t < Num_time; t++) {
@@ -906,14 +979,30 @@ void Global::add_SOCP_chord_Sub_time(Model& Sub, int t) {
 }
 
 void Global::add_SOCP_Outer_Sub_time(Model& Sub, int t) {
-    const auto bus_pairs = grid->get_bus_pairs();
     //for (auto& pair: bus_pairs){
     Constraint SOC_outer_linear("SOC_outer_linear_"+to_string(t));
     SOC_outer_linear = SOC_outer_[t]->get_outer_app();
-    SOC_outer_linear.print(true);
-    Sub.add_constraint(SOC_outer_linear.in_at(bus_pairs, t) <= 0);
+    SOC_outer_linear.print_expanded();
+    Sub.add_constraint(SOC_outer_linear.in_at(grid->get_bus_pairs_chord(),t) <= 0);
+    //Sub.add_constraint(SOC_outer_linear <= 0);
     //}
 }
+
+void Global::add_Sdpcut_Outer_Sub_time(Model& Sub, int t) {
+    Constraint Sdpcut_outer_linear("Sdpcut_outer_linear_"+to_string(t));
+    Sdpcut_outer_linear = Sdpcut_outer_[t]->get_outer_app();
+    Sdpcut_outer_linear.print_expanded();
+    Sub.add_constraint(Sdpcut_outer_linear >= 0);
+}
+
+void Global::add_Sdpcut_Second_order_Sub_time(Model& Model, int t){
+    Constraint Sdpcut_outer_QP("Sdpcut_outer_QP_"+to_string(t));
+    // sdp cut  hessan of 3d sdp.. 
+    Sdpcut_outer_QP = Sdpcut_outer_[t]->get_second_outer_app();
+    Sdpcut_outer_QP.print_expanded();
+    Model.add_constraint(Sdpcut_outer_QP >= 0);
+}
+
 
 void Global::add_KCL_Sub_time(Model& Sub, int t) {
     Constraint KCL_P("KCL_P_"+ to_string(t));
@@ -1095,9 +1184,14 @@ double Global::Subproblem_time_(int t) {
     add_obj_Sub_time(Sub, t);
     add_perspective_OnOff_Sub_time(Sub, t);
     //add_SOCP_Sub_time(Sub, t);
-    add_SOCP_Sub_time(Sub, t);
+    add_SOCP_chord_Sub_time(Sub, t);
+    //add_SOCP_Outer_Sub_time(Sub, t);
+    //add_SOCP_Sub_time(Sub, t);
+
     if (grid->add_3d_nlin){
-        add_3d_cuts_static(Sub,t);
+        //add_3d_cuts_static(Sub,t);
+        //add_3d_cuts_static(Sub,t);
+        add_Sdpcut_Outer_Sub_time(Sub, t);
     }
     add_KCL_Sub_time(Sub, t);
     add_thermal_Sub_time(Sub, t);
@@ -1660,8 +1754,19 @@ vector<vector<string>> Global::get_3dmatrix_index(Net* net, const vector<vector<
     vector<vector<string>> res;
     int size =3;
     res.resize(size); // 3d cuts
+    set<vector<unsigned>> ids;
     for (auto &bag: bags) {
         if (bag.size() != size) {
+            continue;
+        }
+        vector<unsigned> ids_bag; // avoid redundant bags.
+        for (int i = 0; i<size; i++) {
+            ids_bag.push_back(bag[i]->_id);
+        }
+        if(ids.count(ids_bag)==0) {
+            ids.insert(ids_bag);
+        }
+        else {
             continue;
         }
         for (int i = 0; i< size-1; i++) {
@@ -1704,32 +1809,109 @@ std::vector<std::vector<string>> Global::get_3ddiagon_index(const std::vector<st
 }
 
 //void Global::add_3d_cuts_(Model& model, vector<int> indices, int t){
+//void Global::add_3d_cuts_static(Model& model, int t) {
+//    auto keys = get_3dmatrix_index(chordal, grid->_bags, t);
+//    auto keyii = get_3ddiagon_index(grid->_bags, t);
+//    vector<var<Real>> R_Xij_;
+//    vector<var<Real>> Im_Xij_;
+//    vector<var<Real>> Xii_;
+//    R_Xij_.resize(3);
+//    Im_Xij_.resize(3);
+//    Xii_.resize(3);
+//    for (int i = 0; i < 3; i++){
+//        R_Xij_[i] = R_Xij[t].in(keys[i]);
+//        R_Xij_[i]._name += to_string(i);
+//        Im_Xij_[i] = Im_Xij[t].in(keys[i]);
+//        Im_Xij_[i]._name += to_string(i);
+//        Xii_[i] = Xii[t].in(keyii[i]);
+//        Xii_[i]._name += to_string(i);
+//        Xii_[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+//        R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+//        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+//    }
+//    Constraint sdpcut("3dcuts_");
+//    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
+//    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
+//    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
+//    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
+//    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
+//    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
+//    DebugOn("\nsdpcut nb inst = " << sdpcut.get_nb_instances() << endl);
+//    model.add_constraint(sdpcut >= 0);
+//}
+
+
 void Global::add_3d_cuts_static(Model& model, int t) {
-    auto keys = get_3dmatrix_index(chordal, grid->_bags, t);
-    auto keyii = get_3ddiagon_index(grid->_bags, t);
-    vector<var<Real>> R_Xij_;
-    vector<var<Real>> Im_Xij_;
-    vector<var<Real>> Xii_;
-    R_Xij_.resize(3);
-    Im_Xij_.resize(3);
-    Xii_.resize(3);
-    for (int i = 0; i < 3; i++){
-        R_Xij_[i] = R_Xij[t].in(keys[i]);
-        R_Xij_[i]._name += to_string(i);
-        Im_Xij_[i] = Im_Xij[t].in(keys[i]);
-        Im_Xij_[i]._name += to_string(i);
-        Xii_[i] = Xii[t].in(keyii[i]);
-        Xii_[i]._name += to_string(i);
-        Xii_[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
-        R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
-        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+    if(grid->add_3d_nlin) {
+        DebugOn("Adding 3d determinant polynomial cuts\n");
+        auto R_Wij_ = R_Xij[t].pairs_in_directed(*grid, grid->_bags, 3, t);
+        auto Im_Wij_ = Im_Xij[t].pairs_in_directed(*grid, grid->_bags, 3, t);
+        auto Wii_ = Xii[t].in_at(grid->_bags, 3, t);
+        auto I_sgn = signs(*grid, grid->_bags, t);
+        Constraint SDP3("SDP_3D");
+        SDP3 =  2*R_Wij_[0]*(R_Wij_[1] * R_Wij_[2] + I_sgn[1] * I_sgn[2] * Im_Wij_[1] * Im_Wij_[2]);
+        SDP3 += 2*I_sgn[0]*Im_Wij_[0]*(R_Wij_[1] * I_sgn[2] * Im_Wij_[2] - I_sgn[1] * Im_Wij_[1] * R_Wij_[2]);
+        SDP3 -= (power(R_Wij_[0],2) + power(Im_Wij_[0], 2))*Wii_[2];
+        SDP3 -= (power(R_Wij_[1],2) + power(Im_Wij_[1], 2))*Wii_[0];
+        SDP3 -= (power(R_Wij_[2],2) + power(Im_Wij_[2], 2))*Wii_[1];
+        SDP3 += Wii_[0]*Wii_[1]*Wii_[2];
+        DebugOn("\nsdp nb inst = " << SDP3.get_nb_instances() << endl);
+        Sdpcut_outer_[t] = model.add_constraint(SDP3 >= 0);
     }
-    Constraint sdpcut("3dcuts_");
-    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);
-    sdpcut += 2.0*Im_Xij_[0]*(R_Xij_[1]*Im_Xij_[2] -Im_Xij_[1]*R_Xij_[2]);
-    sdpcut -= (power(R_Xij_[0], 2) + power(Im_Xij_[0], 2)) * Xii_[2];
-    sdpcut -= (power(R_Xij_[1], 2) + power(Im_Xij_[1], 2)) * Xii_[0];
-    sdpcut -= (power(R_Xij_[2], 2) + power(Im_Xij_[2], 2)) * Xii_[1];
-    sdpcut += Xii_[0]*Xii_[1]*Xii_[2];
-    model.add_constraint(sdpcut >= 0);
 }
+
+vector<param<>> Global::signs(Net& net, const std::vector<std::vector<Node*>>& bags, int t){
+    vector<param<>> res;
+    string key;
+    size_t idx;
+    res.resize(3);
+    for (int i = 0; i<3; i++) {
+        res[i].set_name("I_sign_" + to_string(t) + "_" +to_string(i));
+    }
+    set<vector<unsigned>> ids;
+    for (auto &bag: net._bags) {
+        if (bag.size() != 3) {
+            continue;
+        }
+        vector<unsigned> ids_bag;
+        for (int i = 0; i<3; i++) {
+            ids_bag.push_back(bag[i]->_id);
+        }
+        if(ids.count(ids_bag)==0) {
+            ids.insert(ids_bag);
+        } else {
+            continue;
+        }
+        for (int i = 0; i< 2; i++) {
+            if(net.has_directed_arc(bag[i], bag[i+1])) {
+                key = bag[i]->_name + "," + bag[i+1]->_name+"," + to_string(t);
+                idx = res[i].set_val(key,1.0);
+                res[i]._ids->at(0).push_back(idx);
+            }
+            else {
+                key = bag[i+1]->_name + "," + bag[i]->_name+","+to_string(t);
+                DebugOff("\nreversed arc " << key);
+                idx = res[i].set_val(key,-1.0);
+                res[i]._ids->at(0).push_back(idx);
+            }
+        }
+        /* Loop back pair */
+        if(net.has_directed_arc(bag[0], bag[2])) {
+            key = bag[0]->_name + "," + bag[2]->_name+"," + to_string(t);
+            idx = res[2].set_val(key,1.0);
+            res[2]._ids->at(0).push_back(idx);
+        }
+        else{
+            key = bag[2]->_name + "," + bag[0]->_name+"," + to_string(t);
+            DebugOff("\nreversed arc " << key);
+            idx = res[2].set_val(key,-1.0);
+            res[2]._ids->at(0).push_back(idx);
+        }
+    }
+    for (int i = 0; i<3; i++) {
+        res[i]._dim[0]=res[i]._ids->at(0).size();
+        res[i]._is_indexed = true;
+    }
+    return res;
+}
+

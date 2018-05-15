@@ -3237,6 +3237,7 @@ namespace gravity {
         qterm* get_square(param_* p); /**< Returns the quadratic term containing a square of p or nullptr if none exists. **/
       
         func_ get_outer_app(); /**< Returns an outer-approximation of the function using the current value of the variables **/
+        func_ get_second_outer_app(); 
         
         Sign get_all_sign() const;
         pair<Real, Real>* get_all_range() const;

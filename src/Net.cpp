@@ -657,6 +657,11 @@ Net* Net::get_chordal_extension() {
                 nn = bag_copy.at(j);
                 nn_chordal=chordal_extension->get_node(nn->_name);
                 if (u->is_connected(nn)) {
+                    if(get_arc(u,nn) && !get_arc(u,nn)->_active) {
+                        Arc* off_arc = get_arc(u,nn);
+                        off_arc->_imaginary = true;
+                        off_arc->_free = true;
+                    }
                     continue;
                 }
                 name = to_string((int) graph_clone->arcs.size()+1);
@@ -668,17 +673,21 @@ Net* Net::get_chordal_extension() {
                 arc->_id = arcs.size();
                 arc->_src = u;
                 arc->_dest = nn;
+                arc->_imaginary = true;
+                arc->_free = true;
                 arc->connect();
                 graph_clone->add_undirected_arc(arc);
 
                 arc_chordal->_id = chordal_extension->arcs.size();
                 arc_chordal->_src = u_chordal;
                 arc_chordal->_dest = nn_chordal;
+                arc_chordal->_imaginary = true;
+                arc_chordal->_free = true;
                 arc_chordal->connect();
                 chordal_extension->add_undirected_arc(arc_chordal);
             }
         }
-        _bags_copy.push_back(bag_copy);
+        //_bags_copy.push_back(bag_copy);
         _bags.push_back(bag);
         if (bag_copy.size()==3) {
             nb++;

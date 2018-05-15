@@ -25,8 +25,20 @@ vector<vector<string>> get_3dmatrix_index(Net* net, const vector<vector<Node*>> 
     vector<vector<string>> res;
     int size =3;
     res.resize(size); // 3d cuts
+    
+    set<vector<unsigned>> ids;
     for (auto &bag: bags) {
         if (bag.size() != size) {
+            continue;
+        }
+        vector<unsigned> ids_bag; // avoid redudant bags.
+        for (int i = 0; i<size; i++) {
+            ids_bag.push_back(bag[i]->_id);
+        }
+        if(ids.count(ids_bag)==0) {
+            ids.insert(ids_bag);
+        }
+        else {
             continue;
         }
         for (int i = 0; i< size-1; i++) {
@@ -120,8 +132,11 @@ int main (int argc, char * argv[])
     PowerNet grid;
     grid.readgrid(fname.c_str());
 
+    grid.get_tree_decomp_bags();
+    grid.update_net();
     /* Grid Parameters */
     auto bus_pairs = grid.get_bus_pairs();
+    auto bus_pairs_chord = grid.get_bus_pairs_chord();
     auto nb_bus_pairs = grid.get_nb_active_bus_pairs();
     auto nb_gen = grid.get_nb_active_gens();
     auto nb_lines = grid.get_nb_active_arcs();
@@ -132,9 +147,11 @@ int main (int argc, char * argv[])
     DebugOn("nb bus_pairs = " << nb_bus_pairs << endl);
     
     //grid.get_tree_decomp_bags();
-    auto chordal = grid.get_chordal_extension();
-    grid.update_update_bus_pairs_chord(chordal);
+    //auto chordal = grid.get_chordal_extension();
+    //grid.update_update_bus_pairs_chord(chordal);
+   
     
+
     /** Build model */
     Model SOCP("SOCP Model");
     
@@ -163,8 +180,6 @@ int main (int argc, char * argv[])
     /* Magnitude of Wii = Vi^2 */
     var<Real>  Wii("Wii", grid.w_min, grid.w_max);
     SOCP.add_var(Wii.in(grid.nodes));
-    Wii.in(grid.nodes).print(true);
-    Wii("1").print(true);
     SOCP.add_var(R_Wij.in(grid._bus_pairs_chord));
     SOCP.add_var(Im_Wij.in(grid._bus_pairs_chord));
     
@@ -180,8 +195,7 @@ int main (int argc, char * argv[])
     /* Second-order cone constraints */
     Constraint SOC("SOC");
     SOC = power(R_Wij, 2) + power(Im_Wij, 2) - Wii.from()*Wii.to();
-    SOCP.add_constraint(SOC.in(grid._bus_pairs_chord) <= 0);
-    SOC.in(grid._bus_pairs_chord).print_expanded();
+    SOCP.add_constraint(SOC.in(bus_pairs) <= 0);
     /* Flow conservation */
     Constraint KCL_P("KCL_P");
     KCL_P  = sum(Pf_from.out_arcs()) + sum(Pf_to.in_arcs()) + grid.pl - sum(Pg.in_gens()) + grid.gs*Wii;
@@ -246,33 +260,48 @@ int main (int argc, char * argv[])
     LNC2 += grid.v_min.from()*grid.v_min.to()*grid.cos_d*(grid.v_min.from()*grid.v_min.to() - grid.v_max.from()*grid.v_max.to());
     SOCP.add(LNC2.in(bus_pairs) >= 0);
     
-    auto keys = get_3dmatrix_index(chordal, grid._bags);
-    auto keyii = get_3ddiagon_index(grid._bags);
-    vector<var<Real>> R_Wij_;
-    vector<var<Real>> Im_Wij_;
-    vector<var<Real>> Wii_;
-    R_Wij_.resize(3);
-    Im_Wij_.resize(3);
-    Wii_.resize(3);
-    for (int i = 0; i < 3; i++){
-        R_Wij_[i] = R_Wij.in(keys[i]);
-        R_Wij_[i]._name += to_string(i);
-        Im_Wij_[i] = Im_Wij.in(keys[i]);
-        Im_Wij_[i]._name += to_string(i);
-        Wii_[i] = Wii.in(keyii[i]);
-        Wii_[i]._name += to_string(i);
-        Wii_[i]._unique_id = make_tuple<>(Wii.get_id(),in_,typeid(Real).hash_code(), 0, i);
-        R_Wij_[i]._unique_id = make_tuple<>(R_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
-        Im_Wij_[i]._unique_id = make_tuple<>(Im_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
-    }
-    Constraint sdpcut("3dcuts_");
-    sdpcut = 2.0*R_Wij_[0]*(R_Wij_[1]*R_Wij_[2] +Im_Wij_[1]*Im_Wij_[2]);
-    sdpcut += 2.0*Im_Wij_[0]*(R_Wij_[1]*Im_Wij_[2] -Im_Wij_[1]*R_Wij_[2]);
-    sdpcut -= (power(R_Wij_[0], 2) + power(Im_Wij_[0], 2)) * Wii_[2];
-    sdpcut -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
-    sdpcut -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];
-    sdpcut += Wii_[0]*Wii_[1]*Wii_[2];
-    SOCP.add(sdpcut >= 0);
+//    auto keys = get_3dmatrix_index(chordal, grid._bags);
+//    auto keyii = get_3ddiagon_index(grid._bags);
+//    vector<var<Real>> R_Wij_;
+//    vector<var<Real>> Im_Wij_;
+//    vector<var<Real>> Wii_;
+//    R_Wij_.resize(3);
+//    Im_Wij_.resize(3);
+//    Wii_.resize(3);
+//    for (int i = 0; i < 3; i++){
+//        R_Wij_[i] = R_Wij.in(keys[i]);
+//        R_Wij_[i]._name += to_string(i);
+//        Im_Wij_[i] = Im_Wij.in(keys[i]);
+//        Im_Wij_[i]._name += to_string(i);
+//        Wii_[i] = Wii.in(keyii[i]);
+//        Wii_[i]._name += to_string(i);
+//        Wii_[i]._unique_id = make_tuple<>(Wii.get_id(),in_,typeid(Real).hash_code(), 0, i);
+//        R_Wij_[i]._unique_id = make_tuple<>(R_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
+//        Im_Wij_[i]._unique_id = make_tuple<>(Im_Wij.get_id(),in_,typeid(Real).hash_code(), 0, i);
+//    }
+//    Constraint sdpcut("3dcuts_");
+//    sdpcut = 2.0*R_Wij_[0]*(R_Wij_[1]*R_Wij_[2] +Im_Wij_[1]*Im_Wij_[2]);
+//    sdpcut += 2.0*Im_Wij_[0]*(R_Wij_[1]*Im_Wij_[2] -Im_Wij_[1]*R_Wij_[2]);
+//    sdpcut -= (power(R_Wij_[0], 2) + power(Im_Wij_[0], 2)) * Wii_[2];
+//    sdpcut -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
+//    sdpcut -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];
+//    sdpcut += Wii_[0]*Wii_[1]*Wii_[2];
+//    SOCP.add(sdpcut >= 0);
+    
+    auto R_Wij_ = R_Wij.pairs_in_directed(grid, grid._bags, 3);
+    auto Im_Wij_ = Im_Wij.pairs_in_directed(grid, grid._bags, 3);
+    auto Wii_ = Wii.in(grid._bags, 3);
+    Constraint SDP3("SDP_3D");
+    SDP3 =  2*R_Wij_[0]*(R_Wij_[1] * R_Wij_[2] +Im_Wij_[1] * Im_Wij_[2]);
+    SDP3 += 2*Im_Wij_[0]*(R_Wij_[1] * Im_Wij_[2] - Im_Wij_[1] * R_Wij_[2]);
+    SDP3 -= (power(R_Wij_[0], 2) + power(Im_Wij_[0], 2)) * Wii_[2];
+    SDP3 -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
+    SDP3 -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];
+    SDP3 += Wii_[0] * Wii_[1] * Wii_[2];
+    DebugOn("\nsdp nb inst = " << SDP3.get_nb_instances() << endl);
+    
+    
+    
     /* Solver selection */
     /* TODO: declare only one solver and one set of time measurment functions for all solvers. */
     if (use_cplex) {
@@ -296,7 +325,7 @@ int main (int argc, char * argv[])
     else {
         solver SCOPF(SOCP,ipopt);
         auto solver_time_start = get_wall_time();
-        SCOPF.run(output=5, relax = false, tol = 1e-6, "ma27", mehrotra = "no");
+        SCOPF.run(output=5, relax = false); // tol = 1e-6, "ma27", mehrotra = "no");
         solver_time_end = get_wall_time();
         total_time_end = get_wall_time();
         solve_time = solver_time_end - solver_time_start;

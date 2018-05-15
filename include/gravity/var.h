@@ -512,8 +512,10 @@ public:
     var to(const ordered_pairs& pairs);
     var in(const ordered_pairs& pairs);
     vector<var> in(const std::vector<std::vector<Node*>>& bags, unsigned size);
+    vector<var> in_at(const std::vector<std::vector<Node*>>& bags, unsigned size, int t);
     vector<var> pairs_in(const std::vector<std::vector<Node*>>& bags, unsigned size);
     vector<var> pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size);
+    vector<var> pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size, int t);
 
     /* Querries */
 
