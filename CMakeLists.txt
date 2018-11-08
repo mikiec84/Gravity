@@ -8,7 +8,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 option(ENABLE_GUROBI "Link to Gurobi libraries" OFF)
 
 # Find IPOPT (optional)
-option(ENABLE_IPOPT "Link to IPOPT libraries" ON)
+option(ENABLE_IPOPT "Link to IPOPT libraries" OFF)
 
 # Find xlnt (optional)
 option(ENABLE_XLNT "Link to XLNT libraries" OFF)
@@ -17,7 +17,7 @@ option(ENABLE_XLNT "Link to XLNT libraries" OFF)
 option(ENABLE_BONMIN "Link to BONMIN libraries" OFF)
 
 # Find CPLEX (optional)
-option(ENABLE_CPLEX "Link to Cplex libraries" ON)
+option(ENABLE_CPLEX "Link to Cplex libraries" OFF)
 
 # Find SDPA (optional)
 option(ENABLE_SDPA "Link to SDPA libraries" OFF)
@@ -26,12 +26,15 @@ option(ENABLE_SDPA "Link to SDPA libraries" OFF)
 option(ENABLE_MOSEK "Link to MOSEK libraries" OFF)
 
 # include BOOST (optional)
-option(ENABLE_BOOST "Link to BOOST libraries" ON)
+option(ENABLE_BOOST "Link to BOOST libraries" OFF)
+
+# include QPP (optional)
+option(ENABLE_QPP "Link to QPP libraries" OFF)
 
 
 execute_process(
-  COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/ext_lib/armadillo.tar.xz
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/ext_lib
+  COMMAND ${CMAKE_COMMAND} -E tar xzf ${PROJECT_SOURCE_DIR}/third_party/armadillo.tar.xz
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/third_party
   )
 
 # configure a header file to pass some of the CMake settings
@@ -126,9 +129,20 @@ set(LIBS ${LIBS} armadillo)
 add_subdirectory(${ARMADILLO_ROOT_DIR})
 
 # Include cpp_option_parser
-include_directories(${PROJECT_SOURCE_DIR}/ext_lib/cpp_option_parser)
-add_subdirectory(ext_lib/cpp_option_parser)
+include_directories(${PROJECT_SOURCE_DIR}/third_party/cpp_option_parser)
+add_subdirectory(third_party/cpp_option_parser)
 set(LIBS ${LIBS} option_parser)
+
+# Include qpp headers
+# Find QPP?
+if (ENABLE_QPP)
+    message(STATUS "Enable QPP")
+    add_definitions(-DUSE_QPP)
+    include_directories(${PROJECT_SOURCE_DIR}/third_party/qpp-1.0/include)
+endif()
+
+# Inlude dir
+include_directories(${PROJECT_SOURCE_DIR}/third_party)
 
 # Include Power dirs
 include_directories(${PROJECT_SOURCE_DIR}/examples/MINLP/Power)
@@ -146,7 +160,27 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(CMAKE_BUILD_TYPE "Release")
 #set(CMAKE_BUILD_TYPE "Debug")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -lpthread")
+#set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#Static Libs
+#Set Linker flags
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,-rpath,'\$ORIGIN/lib'")
+# use, i.e. don't skip the full RPATH for the build tree
+#SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+#SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+#SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+#SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+
+# the RPATH to be used when installing, but only if it's not a system directory
+#SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib:'$ORIGIN/lib'")
 
 #set( CMAKE_VERBOSE_MAKEFILE on )
 

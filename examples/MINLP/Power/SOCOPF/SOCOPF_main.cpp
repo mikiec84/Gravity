@@ -90,11 +90,7 @@ int main (int argc, char * argv[])
     double tol = 1e-6;
     double solver_time_end, total_time_end, solve_time, total_time;
     string mehrotra = "no", log_level="0";
-    //string fname = "../data_sets/Power/nesta_case5_pjm.m";
-    //string fname = "../data_sets/Power/nesta_case14_ieee.m";
-    string fname = "../data_sets/Power/nesta_case300_ieee.m";
-    //string fname = "../data_sets/Power/nesta_case118_ieee.m";
-
+    string fname = "../data_sets/Power/nesta_case5_pjm.m";
     
     string path = argv[0];
     string solver_str="ipopt";
@@ -131,9 +127,6 @@ int main (int argc, char * argv[])
     double total_time_start = get_wall_time();
     PowerNet grid;
     grid.readgrid(fname.c_str());
-
-    grid.get_tree_decomp_bags();
-    grid.update_net();
     /* Grid Parameters */
     auto bus_pairs = grid.get_bus_pairs();
     auto bus_pairs_chord = grid.get_bus_pairs_chord();
@@ -157,28 +150,28 @@ int main (int argc, char * argv[])
     
     /** Variables */
     /* power generation variables */
-    var<Real> Pg("Pg", grid.pg_min, grid.pg_max);
-    var<Real> Qg ("Qg", grid.qg_min, grid.qg_max);
+    var<double> Pg("Pg", grid.pg_min, grid.pg_max);
+    var<double> Qg ("Qg", grid.qg_min, grid.qg_max);
     SOCP.add_var(Pg.in(grid.gens));
     SOCP.add_var(Qg.in(grid.gens));
     
     
     /* power flow variables */
-    var<Real> Pf_from("Pf_from", grid.S_max);
-    var<Real> Qf_from("Qf_from", grid.S_max);
-    var<Real> Pf_to("Pf_to", grid.S_max);
-    var<Real> Qf_to("Qf_to", grid.S_max);
+    var<double> Pf_from("Pf_from", grid.S_max);
+    var<double> Qf_from("Qf_from", grid.S_max);
+    var<double> Pf_to("Pf_to", grid.S_max);
+    var<double> Qf_to("Qf_to", grid.S_max);
     SOCP.add_var(Pf_from.in(grid.arcs));
     SOCP.add_var(Qf_from.in(grid.arcs));
     SOCP.add_var(Pf_to.in(grid.arcs));
     SOCP.add_var(Qf_to.in(grid.arcs));
     
     /* Real part of Wij = ViVj */
-    var<Real>  R_Wij("R_Wij", grid.wr_min, grid.wr_max);
+    var<double>  R_Wij("R_Wij", grid.wr_min, grid.wr_max);
     /* Imaginary part of Wij = ViVj */
-    var<Real>  Im_Wij("Im_Wij", grid.wi_min, grid.wi_max);
+    var<double>  Im_Wij("Im_Wij", grid.wi_min, grid.wi_max);
     /* Magnitude of Wii = Vi^2 */
-    var<Real>  Wii("Wii", grid.w_min, grid.w_max);
+    var<double>  Wii("Wii", grid.w_min, grid.w_max);
     SOCP.add_var(Wii.in(grid.nodes));
     SOCP.add_var(R_Wij.in(grid._bus_pairs_chord));
     SOCP.add_var(Im_Wij.in(grid._bus_pairs_chord));
@@ -199,7 +192,7 @@ int main (int argc, char * argv[])
     /* Flow conservation */
     Constraint KCL_P("KCL_P");
     KCL_P  = sum(Pf_from.out_arcs()) + sum(Pf_to.in_arcs()) + grid.pl - sum(Pg.in_gens()) + grid.gs*Wii;
-    SOCP.add_constraint(KCL_P.in(grid.nodes) == 0);    
+    SOCP.add_constraint(KCL_P.in(grid.nodes) == 0);
     
     Constraint KCL_Q("KCL_Q");
     KCL_Q  = sum(Qf_from.out_arcs()) + sum(Qf_to.in_arcs()) + grid.ql - sum(Qg.in_gens()) - grid.bs*Wii;
@@ -226,23 +219,25 @@ int main (int argc, char * argv[])
     Constraint PAD_UB("PAD_UB");
     PAD_UB = Im_Wij;
     PAD_UB <= grid.tan_th_max*R_Wij;
-    SOCP.add(PAD_UB.in(bus_pairs));
+//    SOCP.add(PAD_UB.in(bus_pairs));
     
     Constraint PAD_LB("PAD_LB");
     PAD_LB =  Im_Wij;
     PAD_LB >= grid.tan_th_min*R_Wij;
-    SOCP.add(PAD_LB.in(bus_pairs));
+//    SOCP.add(PAD_LB.in(bus_pairs));
     
     /* Thermal Limit Constraints */
     Constraint Thermal_Limit_from("Thermal_Limit_from");
     Thermal_Limit_from = power(Pf_from, 2) + power(Qf_from, 2);
     Thermal_Limit_from <= power(grid.S_max,2);
     SOCP.add(Thermal_Limit_from.in(grid.arcs));
+    SOCP.add(Thermal_Limit_from.in(grid.arcs));
     
     
     Constraint Thermal_Limit_to("Thermal_Limit_to");
     Thermal_Limit_to = power(Pf_to, 2) + power(Qf_to, 2);
     Thermal_Limit_to <= power(grid.S_max,2);
+    SOCP.add(Thermal_Limit_to.in(grid.arcs));
     SOCP.add(Thermal_Limit_to.in(grid.arcs));
 
     /* Lifted Nonlinear Cuts */
@@ -259,6 +254,7 @@ int main (int argc, char * argv[])
     LNC2 -= grid.v_min.from()*grid.cos_d*(grid.v_min.from()+grid.v_max.from())*Wii.to();
     LNC2 += grid.v_min.from()*grid.v_min.to()*grid.cos_d*(grid.v_min.from()*grid.v_min.to() - grid.v_max.from()*grid.v_max.to());
     SOCP.add(LNC2.in(bus_pairs) >= 0);
+
     
 //    auto keys = get_3dmatrix_index(chordal, grid._bags);
 //    auto keyii = get_3ddiagon_index(grid._bags);
@@ -325,7 +321,7 @@ int main (int argc, char * argv[])
     else {
         solver SCOPF(SOCP,ipopt);
         auto solver_time_start = get_wall_time();
-        SCOPF.run(output=5, relax = false); // tol = 1e-6, "ma27", mehrotra = "no");
+        SCOPF.run(output, relax = false, tol=1e-6, 0.01, "ma27");
         solver_time_end = get_wall_time();
         total_time_end = get_wall_time();
         solve_time = solver_time_end - solver_time_start;
@@ -333,14 +329,7 @@ int main (int argc, char * argv[])
     }
     
     /** Uncomment next line to print expanded model */
-    /* SOCP.print_expanded(); */
-//    for (auto& pair: bus_pairs){
-//        auto S = SOCP.get_constraint("SOC");
-//        auto  g = S->get_outer_app();
-//        g.print(true);
-//        cout << g.eval() << endl;
-//    }
-    
+//    SOCP.print_expanded();
     string out = "DATA_OPF, " + grid._name + ", " + to_string(nb_buses) + ", " + to_string(nb_lines) +", " + to_string(SOCP._obj_val) + ", " + to_string(-numeric_limits<double>::infinity()) + ", " + to_string(solve_time) + ", LocalOptimal, " + to_string(total_time);
     DebugOn(out <<endl);
     return 0;

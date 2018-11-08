@@ -1,9 +1,13 @@
 
-[![Build Status](https://travis-ci.org/Allinsights/Gravity.svg?branch=master)](https://travis-ci.org/Allinsights/Gravity)
+[![Build Status](https://travis-ci.org/coin-or/Gravity.svg?branch=master)](https://travis-ci.org/coin-or/Gravity)
+[![License](https://img.shields.io/badge/License-BSD--3-brightgreen.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![download](https://img.shields.io/badge/download%20%20-latest-blue.svg)](https://github.com/coin-or/Gravity/releases)
 
+<a href="https://goo.gl/f7QLcS"><img alt="Chat on Slack" height="40" width="172" src="https://platform.slack-edge.com/img/sign_in_with_slack.png" srcset="https://platform.slack-edge.com/img/sign_in_with_slack.png 1x, https://platform.slack-edge.com/img/sign_in_with_slack@2x.png 2x" /></a>
 
-Gravity
-=======
+<p align="center">
+<img src="https://static.wixstatic.com/media/c6cff5_dd7659693c6247dc8eb8605d3dca95e8~mv2_d_3300_2550_s_4_2.png/v1/crop/x_1058,y_575,w_1183,h_1225/fill/w_288,h_298,al_c,usm_0.66_1.00_0.01/c6cff5_dd7659693c6247dc8eb8605d3dca95e8~mv2_d_3300_2550_s_4_2.png" width="250">
+</p>
 
 Mathematical Modeling for Optimization and Machine Learning
 -----------
@@ -17,6 +21,8 @@ www.allinsights.io/gravity
 
 Gravity is licensed under the BSD 3-Clause License. Please see the [LICENSE.md](https://github.com/Allinsights/Gravity/blob/master/LICENSE.md) file for details.
 
+[<img 
+src="https://static.wixstatic.com/media/c6cff5_083fff4f0fa94b4b98b6790b18e7af8b~mv2.png/v1/fill/w_210,h_137,al_c,usm_0.66_1.00_0.01/c6cff5_083fff4f0fa94b4b98b6790b18e7af8b~mv2.png" width="100">](https://paypal.me/hlhijazi)
 
 ### ** Contributors **
 Hassan Hijazi, Los Alamos National Laboratory, The Australian National University | hlh@lanl.gov
@@ -31,9 +37,21 @@ Carleton Coffrin, Los Alamos National Laboratory| cjc@lanl.gov
 See [INSTALL.md](INSTALL.md) for instructions on compiling Gravity
 
 After running make, the Gravity executables can be found under Gravity/bin/
-
-
 *****************************
+
+Getting Started
+-----------
+First, you will need to install an IDE, I recommend to choose among the following:
+
+[<img src="data/media/visual_studio.jpg" width="70">](https://www.visualstudio.com/downloads/) | 
+[<img src="data/media/clion.jpg" width="50">](https://www.jetbrains.com/clion/) | 
+[<img src="data/media/Xcode.png" width="50">](https://developer.apple.com/xcode/downloads/) | 
+[<img src="data/media/eclipse-800x188.png" width="120">](https://www.eclipse.org/downloads/packages/release/2018-09/r/eclipse-ide-cc-developers)
+
+The model below was implemented in Xcode:
+
+![cover-example](data/media/Kapture_Stable_Set.gif)
+
 
 Some Numerical Results:
 -----------
