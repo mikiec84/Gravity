@@ -262,6 +262,7 @@ public:
         res._ub = this->_ub;
         return res;
     }
+
     
     template<typename Tobj>
     var from(const vector<Tobj>& vec){
@@ -282,11 +283,31 @@ public:
         res._ub = this->_ub;
         return res;
     }
+
+    template<typename Tobj>
+    var from_at(const vector<Tobj*>& vec, const unsigned t){
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::from_at(vec, t));
+        res.param<type>::set_type(var_c);
+        res._lb = this->_lb;
+        res._ub = this->_ub;
+        return res;
+    }
     
     template<typename Tobj>
     var to(const vector<Tobj*>& vec, const indices& T){
         var<type> res(this->_name);
         res.param<type>::operator=(param<type>::to(vec, T));
+        res.param<type>::set_type(var_c);
+        res._lb = this->_lb;
+        res._ub = this->_ub;
+        return res;
+    }
+
+    template<typename Tobj>
+    var to_at(const vector<Tobj*>& vec, const unsigned t){
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::to_at(vec, t));
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
@@ -450,6 +471,16 @@ public:
         res._ub = this->_ub;
         return res;
     }
+
+    var in_arcs_at(const vector<Node*>& vec, const unsigned t) {
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::in_arcs_at(vec, t));
+        res.param<type>::set_type(var_c);
+        res._lb = this->_lb;
+        res._ub = this->_ub;
+        return res;
+    }
+
     
     var out_arcs(const vector<Node*>& vec) {
         var<type> res(this->_name);
@@ -463,6 +494,15 @@ public:
     var out_arcs(const vector<Node*>& vec, const indices& T) {
         var<type> res(this->_name);
         res.param<type>::operator=(param<type>::out_arcs(vec,T));
+        res.param<type>::set_type(var_c);
+        res._lb = this->_lb;
+        res._ub = this->_ub;
+        return res;
+    }
+
+    var out_arcs_at(const vector<Node*>& vec, const unsigned t) {
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::out_arcs_at(vec, t));
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
@@ -482,6 +522,16 @@ public:
     var in_gens(const vector<Node*>& vec, const indices& T) {
         var<type> res(this->_name);
         res.param<type>::operator=(param<type>::in_gens(vec,T));
+        res.param<type>::set_type(var_c);
+        res._lb = this->_lb;
+        res._ub = this->_ub;
+        return res;
+    }
+
+    var in_gens_at(const vector<Node*>& vec, unsigned t) {
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::in_gens_at(vec, t));
+        //res.print(true);
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
@@ -550,6 +600,16 @@ public:
     var in_pairs(const vector<Tobj*>& vec, unsigned T) {
         var<type> res(this->_name);
         res.param<type>::operator=(param<type>::in_pairs(vec, T));
+        res.param<type>::set_type(var_c);
+        res._lb = this->_lb;
+        res._ub = this->_ub;
+        return res;
+    }
+
+    template<typename Tobj>
+    var in_pairs_at(const vector<Tobj*>& vec, unsigned t) {
+        var<type> res(this->_name);
+        res.param<type>::operator=(param<type>::in_pairs_at(vec, t));
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
@@ -625,9 +685,9 @@ public:
     var from(const ordered_pairs& pairs);
     var to(const ordered_pairs& pairs);
     var in(const ordered_pairs& pairs);
-    vector<var> in(const std::vector<std::vector<Node*>>& bags, unsigned size);
-    vector<var> in_at(const std::vector<std::vector<Node*>>& bags, unsigned size, int t);
-    //vector<var> in_bags(const std::vector<std::vector<Node*>>& bags, unsigned size);
+    //vector<var> in(const std::vector<std::vector<Node*>>& bags, unsigned size);
+    vector< var> in_at(const std::vector<std::vector<Node*>>& bags, unsigned size, int t);
+    vector<var> in_bags(const std::vector<std::vector<Node*>>& bags, unsigned size);
     vector<var> pairs_in(const std::vector<std::vector<Node*>>& bags, unsigned size);
     vector<var> pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size);
     vector<var> pairs_in_directed(Net& net, const std::vector<std::vector<Node*>>& bags, unsigned size, int t);
@@ -795,10 +855,7 @@ public:
     }
 
     /* Modifiers */
-    
-    
-    
-    
+  
     
     //void    set_size(size_t s, type val = 0);
     /* Operators */

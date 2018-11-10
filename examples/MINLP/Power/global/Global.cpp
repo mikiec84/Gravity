@@ -83,19 +83,19 @@ Global::Global(PowerNet* net, int parts, int T) {
     auto bus_pairs = grid->get_bus_pairs();
     auto bus_pairs_chord = grid->get_bus_pairs_chord();
     for (int t = 0; t < T; t++) {
-        //var<Real> pgt("Pg_" + to_string(t), grid->pg_min, grid->pg_max);
-        var<Real> pgt("Pg_" + to_string(t), grid->pg_min.in_at(grid->gens, t), grid->pg_max.in_at(grid->gens, t));
-        var<Real> qgt("Qg_" + to_string(t), grid->qg_min.in_at(grid->gens, t), grid->qg_max.in_at(grid->gens, t));
-        var<Real> pg2t("Pg2_" + to_string(t), non_neg_); // new var introduced for the perspective formulation.
+        //var<double> pgt("Pg_" + to_string(t), grid->pg_min, grid->pg_max);
+        var<double> pgt("Pg_" + to_string(t), grid->pg_min.in_at(grid->gens, t), grid->pg_max.in_at(grid->gens, t));
+        var<double> qgt("Qg_" + to_string(t), grid->qg_min.in_at(grid->gens, t), grid->qg_max.in_at(grid->gens, t));
+        var<double> pg2t("Pg2_" + to_string(t), non_neg_); // new var introduced for the perspective formulation.
         Pg.push_back(pgt);
         Pg2.push_back(pg2t);
         Qg.push_back(qgt);
     }
     //Lifted variables.
     for (int t = 0; t < T; t++) {
-        var<Real>  R_Xijt("R_Xij" + to_string(t), grid->wr_min.in_at(bus_pairs_chord, t), grid->wr_max.in_at(bus_pairs_chord, t)); // real part of Wij
-        var<Real>  Im_Xijt("Im_Xij" + to_string(t), grid->wi_min.in_at(bus_pairs_chord, t), grid->wi_max.in_at(bus_pairs_chord, t));
-        var<Real>  Xiit("Xii" + to_string(t), grid->w_min.in_at(grid->nodes,t), grid->w_max.in_at(grid->nodes,t));
+        var<double>  R_Xijt("R_Xij" + to_string(t), grid->wr_min.in_at(bus_pairs_chord, t), grid->wr_max.in_at(bus_pairs_chord, t)); // real part of Wij
+        var<double>  Im_Xijt("Im_Xij" + to_string(t), grid->wi_min.in_at(bus_pairs_chord, t), grid->wi_max.in_at(bus_pairs_chord, t));
+        var<double>  Xiit("Xii" + to_string(t), grid->w_min.in_at(grid->nodes,t), grid->w_max.in_at(grid->nodes,t));
         R_Xijt.initialize_all(1.0);
         Xiit.initialize_all(1.001);
         //R_Xij.push_back(R_Xijt.in_at(bus_pairs_chord, t));
@@ -106,10 +106,10 @@ Global::Global(PowerNet* net, int parts, int T) {
         Xii.push_back(Xiit);
     }
     for (int t = 0; t < T; t++) {
-        var<Real> Pf_fromt("Pf_from"+to_string(t), grid->S_max.in_at(grid->arcs, t));
-        var<Real> Qf_fromt("Qf_from"+to_string(t), grid->S_max.in_at(grid->arcs, t));
-        var<Real> Pf_tot("Pf_to"+to_string(t), grid->S_max.in_at(grid->arcs, t));
-        var<Real> Qf_tot("Qf_to"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<double> Pf_fromt("Pf_from"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<double> Qf_fromt("Qf_from"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<double> Pf_tot("Pf_to"+to_string(t), grid->S_max.in_at(grid->arcs, t));
+        var<double> Qf_tot("Qf_to"+to_string(t), grid->S_max.in_at(grid->arcs, t));
         Pf_from.push_back(Pf_fromt);
         Qf_from.push_back(Qf_fromt);
         Pf_to.push_back(Pf_tot);
@@ -119,13 +119,13 @@ Global::Global(PowerNet* net, int parts, int T) {
     // Commitment variables
     for (int t = 0; t < T; t++) {
         //var<bool>  On_offt("On_off_" + to_string(t), 0, 1);
-        var<Real>  On_offt("On_off_" + to_string(t), 0, 1);
-        //var<Real>  Start_upt("Start_up_" + to_string(t));
-        //var<Real>  Shut_downt("Shut_down_" + to_string(t));
+        var<double>  On_offt("On_off_" + to_string(t), 0, 1);
+        //var<double>  Start_upt("Start_up_" + to_string(t));
+        //var<double>  Shut_downt("Shut_down_" + to_string(t));
         //var<bool>  Start_upt("Start_up_" + to_string(t));
         //var<bool>  Shut_downt("Shut_down_" + to_string(t));
-        var<Real>  Start_upt("Start_up_" + to_string(t), 0, 1);
-        var<Real>  Shut_downt("Shut_down_" + to_string(t), 0, 1);
+        var<double>  Start_upt("Start_up_" + to_string(t), 0, 1);
+        var<double>  Shut_downt("Shut_down_" + to_string(t), 0, 1);
         //On_off.push_back(On_offt.in_at(grid->gens, t-1));
         //Start_up.push_back(Start_upt.in_at(grid->gens, t));
         //Shut_down.push_back(Shut_downt.in_at(grid->gens, t));
@@ -509,19 +509,19 @@ double Global::getdual_relax_spatial() {
     Shut_down.clear();
 
     for (int c = 0; c < Num_parts; c++) {
-        var<Real>  bag_Xii("Xii_"+ to_string(c), grid->w_min.in(P_->bag_bus_union_out[c], Num_time),
+        var<double>  bag_Xii("Xii_"+ to_string(c), grid->w_min.in(P_->bag_bus_union_out[c], Num_time),
                            grid->w_max.in(P_->bag_bus_union_out[c], Num_time));
         Xii.push_back(bag_Xii);
-        var<Real>  bag_R_Xij("R_Xij_"+ to_string(c), grid->wr_min.in(P_->bag_bus_pairs_union[c], Num_time),
+        var<double>  bag_R_Xij("R_Xij_"+ to_string(c), grid->wr_min.in(P_->bag_bus_pairs_union[c], Num_time),
                              grid->wr_max.in(P_->bag_bus_pairs_union[c], Num_time));
-        var<Real>  bag_Im_Xij("Im_Xij_"+ to_string(c), grid->wi_min.in(P_->bag_bus_pairs_union[c], Num_time),
+        var<double>  bag_Im_Xij("Im_Xij_"+ to_string(c), grid->wi_min.in(P_->bag_bus_pairs_union[c], Num_time),
                               grid->wi_max.in(P_->bag_bus_pairs_union[c], Num_time));
         R_Xij.push_back(bag_R_Xij);
         Im_Xij.push_back(bag_Im_Xij);
 
-        var<Real>  bag_Pg("Pg_" + to_string(c), grid->pg_min.in(P_->bag_gens[c], Num_time), grid->pg_max.in(P_->bag_gens[c],Num_time));
-        var<Real>  bag_Qg("Qg_" + to_string(c), grid->qg_min.in(P_->bag_gens[c], Num_time), grid->qg_max.in(P_->bag_gens[c], Num_time));
-        var<Real> bag_Pg2("Pg2_" + to_string(c), non_neg_); // new var introduced for the perspective formulation.
+        var<double>  bag_Pg("Pg_" + to_string(c), grid->pg_min.in(P_->bag_gens[c], Num_time), grid->pg_max.in(P_->bag_gens[c],Num_time));
+        var<double>  bag_Qg("Qg_" + to_string(c), grid->qg_min.in(P_->bag_gens[c], Num_time), grid->qg_max.in(P_->bag_gens[c], Num_time));
+        var<double> bag_Pg2("Pg2_" + to_string(c), non_neg_); // new var introduced for the perspective formulation.
         Pg.push_back(bag_Pg);
         Pg2.push_back(bag_Pg2.in(P_->bag_gens[c], Num_time));
         Qg.push_back(bag_Qg);
@@ -532,8 +532,8 @@ double Global::getdual_relax_spatial() {
         var<>  bag_Onoff("On_off_" + to_string(c));
         var<>  bag_Up("Start_up_" + to_string(c));
         var<>  bag_Down("Shut_down_" + to_string(c));
-        //var<Real>  bag_Up("Start_up_" + to_string(c));
-        //var<Real>  bag_Down("Shut_down_" + to_string(c));
+        //var<double>  bag_Up("Start_up_" + to_string(c));
+        //var<double>  bag_Down("Shut_down_" + to_string(c));
 
         On_off.push_back(bag_Onoff);
         Start_up.push_back(bag_Up);
@@ -555,16 +555,16 @@ double Global::getdual_relax_spatial() {
         ACUC.add_var(Im_Xij[c].in(P_->bag_bus_pairs_union[c], Num_time));
     }
     //power flow vars are treated as auxiliary vars.
-    vector<var<Real>> Pf_from;
-    vector<var<Real>> Qf_from;
-    vector<var<Real>> Pf_to;
-    vector<var<Real>> Qf_to;
+    vector<var<double>> Pf_from;
+    vector<var<double>> Qf_from;
+    vector<var<double>> Pf_to;
+    vector<var<double>> Qf_to;
     for (int c = 0; c < Num_parts; c++) {
         if (P_->bag_arcs_union[c].size() > 0) {
-            var<Real> bag_Pf_from("Pf_from"+to_string(c), grid->S_max.in(P_->bag_arcs_union_out[c], Num_time));
-            var<Real> bag_Qf_from("Qf_from"+to_string(c), grid->S_max.in(P_->bag_arcs_union_out[c], Num_time));
-            var<Real> bag_Pf_to("Pf_to"+to_string(c), grid->S_max.in(P_->bag_arcs_union_in[c], Num_time));
-            var<Real> bag_Qf_to("Qf_to"+to_string(c), grid->S_max.in(P_->bag_arcs_union_in[c], Num_time));
+            var<double> bag_Pf_from("Pf_from"+to_string(c), grid->S_max.in(P_->bag_arcs_union_out[c], Num_time));
+            var<double> bag_Qf_from("Qf_from"+to_string(c), grid->S_max.in(P_->bag_arcs_union_out[c], Num_time));
+            var<double> bag_Pf_to("Pf_to"+to_string(c), grid->S_max.in(P_->bag_arcs_union_in[c], Num_time));
+            var<double> bag_Qf_to("Qf_to"+to_string(c), grid->S_max.in(P_->bag_arcs_union_in[c], Num_time));
             Pf_from.push_back(bag_Pf_from);
             Qf_from.push_back(bag_Qf_from);
             Pf_to.push_back(bag_Pf_to);
@@ -575,7 +575,7 @@ double Global::getdual_relax_spatial() {
             ACUC.add_var(bag_Qf_to.in(P_->bag_arcs_union_in[c], Num_time));
         }
         else {
-            var<Real> empty("empty");
+            var<double> empty("empty");
             empty.set_size(0);
             Pf_from.push_back(empty);
             Pf_to.push_back(empty);
@@ -1314,7 +1314,7 @@ double Global::Subproblem_upper_time_(int t) {
 //    //Start_up_sol_[t].print(true);
 //    Shut_down_sol_[t] = *(param<bool>*)(Sub.get_var("Shut_down_"+to_string(t)+".in_at_" + to_string(t) + "Gen"));
 //    //Shut_down_sol_[t].print(true);
-//    Pg_sol_[t] = *(param<Real>*)(Sub.get_var("Pg_"+to_string(t)+".in_at_" + to_string(t) + "Gen"));
+//    Pg_sol_[t] = *(param<double>*)(Sub.get_var("Pg_"+to_string(t)+".in_at_" + to_string(t) + "Gen"));
 //    Pg_sol_[t].print(true);
     //check_rank1_constraint_(Sub, t);
     return Sub._obj_val;
@@ -1389,10 +1389,10 @@ double Global::Subproblem_spatial_(int l) {
     R_Xij[l].initialize_all(1.0);
     Subr.add_var(Im_Xij[l].in(P_->bag_bus_pairs_union[l], Num_time));
     //power flow
-    var<Real> Pf_from("Pf_from", grid->S_max.in(P_->bag_arcs_union_out[l], Num_time));
-    var<Real> Qf_from("Qf_from", grid->S_max.in(P_->bag_arcs_union_out[l], Num_time));
-    var<Real> Pf_to("Pf_to", grid->S_max.in(P_->bag_arcs_union_in[l], Num_time));
-    var<Real> Qf_to("Qf_to", grid->S_max.in(P_->bag_arcs_union_in[l], Num_time));
+    var<double> Pf_from("Pf_from", grid->S_max.in(P_->bag_arcs_union_out[l], Num_time));
+    var<double> Qf_from("Qf_from", grid->S_max.in(P_->bag_arcs_union_out[l], Num_time));
+    var<double> Pf_to("Pf_to", grid->S_max.in(P_->bag_arcs_union_in[l], Num_time));
+    var<double> Qf_to("Qf_to", grid->S_max.in(P_->bag_arcs_union_in[l], Num_time));
     if (P_->bag_arcs_union[l].size() > 0) {
         Subr.add_var(Pf_from.in(P_->bag_arcs_union_out[l], Num_time));
         Subr.add_var(Qf_from.in(P_->bag_arcs_union_out[l], Num_time));
@@ -1589,11 +1589,11 @@ double Global::Subproblem_spatial_(int l) {
     solve_Subr.run(output, relax, tol);
     // LINKED VARIABLES
     // std::string name = Xii[l].in(P_->bag_bus[l],Num_time).get_name();
-//    Xii_log= (*(var<Real>*) Subr.get_var(name));
+//    Xii_log= (*(var<double>*) Subr.get_var(name));
 //    name = R_Xij_.in(P_->bag_bus_pairs_union[l], Num_time).get_name();
-//    R_Xij_log = (*(var<Real>*) Subr.get_var(name));
+//    R_Xij_log = (*(var<double>*) Subr.get_var(name));
 //    name = Im_Xij.in(P_->bag_bus_pairs_union[l], Num_time).get_name();
-//    Im_Xij_log = (*(var<Real>*) Subr.get_var(name));
+//    Im_Xij_log = (*(var<double>*) Subr.get_var(name));
     return Subr._obj_val;
 }
 
@@ -1639,8 +1639,8 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
     // recursive decomposition to dimension 2 Lorenz cone.
     // we have L^3 rotated SOCP.
     const auto bus_pairs = grid->get_bus_pairs();
-    var<Real> gamma("gamma");
-    var<Real> z("z");
+    var<double> gamma("gamma");
+    var<double> z("z");
     model.add_var(z.in_at(bus_pairs, t));
     model.add_var(gamma.in_at(bus_pairs, t));
 
@@ -1654,16 +1654,16 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
     // cone decomposition.
     // R_xij^2 + Im_xij^2 + z^2 <= gamma^2...
 
-    var<Real> y("y"); // auxilary vars for cone decomposition
+    var<double> y("y"); // auxilary vars for cone decomposition
     model.add_var(y.in_at(bus_pairs, t));
     // R_xij^2 + Im_xij^2 <= y^2.
     // y^2 + z^2 < = r^2.
     //BenNem_Lorenz_(model, y(name), z(name), gamma, k);
-    vector<var<Real>> alpha;
-    vector<var<Real>> beta;
+    vector<var<double>> alpha;
+    vector<var<double>> beta;
     for (int i = 1; i <k+1; i++) {
-        var<Real> alphai("alpha_"+to_string(i));
-        var<Real> betai("beta_"+to_string(i));
+        var<double> alphai("alpha_"+to_string(i));
+        var<double> betai("beta_"+to_string(i));
         model.add_var(alphai.in_at(bus_pairs, t));
         model.add_var(betai.in_at(bus_pairs, t));
         alpha.push_back(alphai);
@@ -1692,11 +1692,11 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
     Extend4 = y - alpha[k-1]*cos(M_PI*pow(0.5, k)) - beta[k-1]*sin(M_PI*pow(0.5, k));
     model.add_constraint(Extend4.in_at(bus_pairs,t) ==0);
 
-    vector<var<Real>> alphay;
-    vector<var<Real>> betaz;
+    vector<var<double>> alphay;
+    vector<var<double>> betaz;
     for (int i = 1; i <k+1; i++) {
-        var<Real> alphayi("alphay_"+to_string(i));
-        var<Real> betazi("betaz_"+to_string(i));
+        var<double> alphayi("alphay_"+to_string(i));
+        var<double> betazi("betaz_"+to_string(i));
         model.add_var(alphayi.in_at(bus_pairs, t));
         model.add_var(betazi.in_at(bus_pairs, t));
         alphay.push_back(alphayi);
@@ -1812,9 +1812,9 @@ std::vector<std::vector<string>> Global::get_3ddiagon_index(const std::vector<st
 //void Global::add_3d_cuts_static(Model& model, int t) {
 //    auto keys = get_3dmatrix_index(chordal, grid->_bags, t);
 //    auto keyii = get_3ddiagon_index(grid->_bags, t);
-//    vector<var<Real>> R_Xij_;
-//    vector<var<Real>> Im_Xij_;
-//    vector<var<Real>> Xii_;
+//    vector<var<double>> R_Xij_;
+//    vector<var<double>> Im_Xij_;
+//    vector<var<double>> Xii_;
 //    R_Xij_.resize(3);
 //    Im_Xij_.resize(3);
 //    Xii_.resize(3);
@@ -1825,9 +1825,9 @@ std::vector<std::vector<string>> Global::get_3ddiagon_index(const std::vector<st
 //        Im_Xij_[i]._name += to_string(i);
 //        Xii_[i] = Xii[t].in(keyii[i]);
 //        Xii_[i]._name += to_string(i);
-//        Xii_[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
-//        R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
-//        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(Real).hash_code(), 0, i);
+//        Xii_[i]._unique_id = make_tuple<>(Xii[t].get_id(),in_,typeid(double).hash_code(), 0, i);
+//        R_Xij_[i]._unique_id = make_tuple<>(R_Xij[t].get_id(),in_,typeid(double).hash_code(), 0, i);
+//        Im_Xij_[i]._unique_id = make_tuple<>(Im_Xij[t].get_id(),in_,typeid(double).hash_code(), 0, i);
 //    }
 //    Constraint sdpcut("3dcuts_");
 //    sdpcut = 2.0*R_Xij_[0]*(R_Xij_[1]*R_Xij_[2] +Im_Xij_[1]*Im_Xij_[2]);

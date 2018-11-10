@@ -27,7 +27,7 @@ int main (int argc, char * argv[])
     double tol = 1e-6;
     double solver_time_end, total_time_end, solve_time, total_time;
     string mehrotra = "no", log_level="0";
-    string fname = "../data_sets/Power/nesta_case5_pjm.m";
+    string fname = "../data/Power/nesta_case5_pjm.m";
     
     string path = argv[0];
     string solver_str="ipopt";

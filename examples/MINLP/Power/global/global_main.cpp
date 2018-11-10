@@ -30,10 +30,10 @@ bool bus_pair_compare(const index_pair* n1, const index_pair* n2) {
 }
 
 struct net_param {
-    param<Real> c0, c1, c2; /**< Generation costs */
-    param<Real> tan_th_min, tan_th_max;
-    param<Real> g_ff, g_ft, g_tt, g_tf, b_ff, b_ft, b_tf, b_tt;
-    param<Real> S_max;
+    param<double> c0, c1, c2; /**< Generation costs */
+    param<double> tan_th_min, tan_th_max;
+    param<double> g_ff, g_ft, g_tt, g_tf, b_ff, b_ft, b_tf, b_tt;
+    param<double> S_max;
 };
 
 // Note that time based decomposition needs more constraints relaxed..

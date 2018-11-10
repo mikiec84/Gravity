@@ -7539,21 +7539,6 @@ namespace gravity{
         res += eval();
         return res;
     }
-    
-    func_ func_::get_second_outer_app(){
-        func_ res;
-        res = get_outer_app();
-        param_* v1;
-        param_* v2;
-        for (auto it = _vars->begin(); it != _vars->end(); it++){
-            v1 = it->second.first.get();
-            for (auto itt = it; itt != _vars->end(); itt++){
-                v2 = itt->second.first.get();
-                res += 0.5*((*v1) - poly_eval(v1))*get_stored_derivative(v1->_unique_id)->get_derivative(*v2).eval()*((*v2) - poly_eval(v2));
-            }
-        }
-        return res; 
-    }
 
     pair<double,double>* func_::get_all_range() const{
         return _all_range;

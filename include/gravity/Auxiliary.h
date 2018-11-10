@@ -9,6 +9,7 @@
 #ifndef Auxiliary_h
 #define Auxiliary_h
 
+#include <string>
 using namespace std;
 
 namespace gravity {

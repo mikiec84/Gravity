@@ -2777,7 +2777,7 @@ void Model::add_round_solution_cuts(){
             case double_:{
                 auto real_var = (var<double>*)v;
                 if(real_var->_is_relaxed){
-                    param<> rhs("rhs");
+                    param<int> rhs("rhs");
                     for (int i = 0; i < real_var->get_dim(); i++) {
                         rhs.set_val(i,round(real_var->_val->at(i)));
                     }

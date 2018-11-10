@@ -8,7 +8,6 @@
 #include <math.h>
 #include <gravity/constraint.h>
 
-
 using namespace gravity;
 /** Constructor */
 //@{
@@ -236,6 +235,5 @@ void Constraint::print(){
         default:
             break;
     }
-    //    printf("%f;\n", _rhs);
-    cout << _rhs << ";\n";    
+    cout << _rhs << ";\n";
 };

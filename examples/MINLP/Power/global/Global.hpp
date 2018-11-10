@@ -23,62 +23,62 @@ public:
     int Num_time; // time decomposition
 
     // Schedule Parameters
-    param<Real> rate_ramp;
-    param<Real> rate_switch;
+    param<real> rate_ramp;
+    param<double> rate_switch;
     param<int> min_up;
     param<int> min_down;
-    param<Real> cost_up;
-    param<Real> cost_down;
-    param<Real> Pg_initial;
-    param<Real> On_off_initial;
+    param<double> cost_up;
+    param<double> cost_down;
+    param<double> Pg_initial;
+    param<double> On_off_initial;
     // Variables 
-    vector<var<Real>> Pg;
-    vector<var<Real>> Pg2; // new var introduced for the perspective formulation.
-    vector<var<Real>> Qg;
+    vector<var<double>> Pg;
+    vector<var<double>> Pg2; // new var introduced for the perspective formulation.
+    vector<var<double>> Qg;
 
     //Lifted variables.
-    vector<var<Real>> R_Xij;
-    vector<var<Real>> Im_Xij;
-    vector<var<Real>> Xii;
+    vector<var<double>> R_Xij;
+    vector<var<double>> Im_Xij;
+    vector<var<double>> Xii;
     // Commitment variables
     //vector<var<bool>> On_off; 
     vector<var<>> On_off; 
-    //vector<var<Real>> Start_up;
-    //vector<var<Real>> Shut_down;
+    //vector<var<double>> Start_up;
+    //vector<var<double>> Shut_down;
     //vector<var<bool>> Start_up;
     //vector<var<bool>> Shut_down;
     vector<var<>> Start_up;
     vector<var<>> Shut_down;
     // sol
     vector<param<bool>> On_off_sol_; 
-    vector<param<Real>> Pg_sol_;
-    //vector<param<Real>> Start_up_sol_;
-    //vector<param<Real>> Shut_down_sol_;
+    vector<param<double>> Pg_sol_;
+    //vector<param<double>> Start_up_sol_;
+    //vector<param<double>> Shut_down_sol_;
     vector<param<bool>> Start_up_sol_;
     vector<param<bool>> Shut_down_sol_;
-    param<Real> Im_Xij_sol_; 
-    param<Real> R_Xij_sol_; 
-    param<Real> Xii_sol_; 
+    param<double> Im_Xij_sol_; 
+    param<double> R_Xij_sol_; 
+    param<double> Xii_sol_; 
     // power flow vars;
-    vector<var<Real>> Pf_from;
-    vector<var<Real>> Qf_from;
-    vector<var<Real>> Pf_to;
-    vector<var<Real>> Qf_to;
+    vector<var<double>> Pf_from;
+    vector<var<double>> Qf_from;
+    vector<var<double>> Pf_to;
+    vector<var<double>> Qf_to;
 
    // multipliers time
-    param<Real> lambda_up; // inter temporal: start up and shut down constraints
-    param<Real> lambda_down;
-    param<Real> zeta_up; // ramping constraints
-    param<Real> zeta_down;
-    param<Real> mu; // dual of min up down constraints
-    param<Real> mu_up;
-    param<Real> mu_down;
+    param<double> lambda_up; // inter temporal: start up and shut down constraints
+    param<double> lambda_down;
+    param<double> zeta_up; // ramping constraints
+    param<double> zeta_down;
+    param<double> mu; // dual of min up down constraints
+    param<double> mu_up;
+    param<double> mu_down;
     bool include_min_updown_ =false;
     
     // multipliers spatial
-    param<Real> R_lambda_;
-    param<Real> Im_lambda_;
-    param<Real> lambda_;
+    param<double> R_lambda_;
+    param<double> Im_lambda_;
+    param<double> lambda_;
     // vals of each subproblem
     vector<double> Sub_;
     // SOCP constraints

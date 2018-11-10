@@ -90,7 +90,7 @@ int main (int argc, char * argv[])
     double tol = 1e-6;
     double solver_time_end, total_time_end, solve_time, total_time;
     string mehrotra = "no", log_level="0";
-    string fname = "../data_sets/Power/nesta_case5_pjm.m";
+    string fname = "../data/Power/nesta_case5_pjm.m";
     
     string path = argv[0];
     string solver_str="ipopt";
@@ -286,7 +286,7 @@ int main (int argc, char * argv[])
     
     auto R_Wij_ = R_Wij.pairs_in_directed(grid, grid._bags, 3);
     auto Im_Wij_ = Im_Wij.pairs_in_directed(grid, grid._bags, 3);
-    auto Wii_ = Wii.in(grid._bags, 3);
+    auto Wii_ = Wii.in_bags(grid._bags, 3);
     Constraint SDP3("SDP_3D");
     SDP3 =  2*R_Wij_[0]*(R_Wij_[1] * R_Wij_[2] +Im_Wij_[1] * Im_Wij_[2]);
     SDP3 += 2*Im_Wij_[0]*(R_Wij_[1] * Im_Wij_[2] - Im_Wij_[1] * R_Wij_[2]);
