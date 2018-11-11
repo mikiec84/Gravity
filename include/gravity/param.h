@@ -2583,7 +2583,7 @@ class param : public param_ {
     res = in(keys);
     res._name += "from_at_" + vec.front()->_type_name;
     res._unique_id =
-        make_tuple<>(res.get_id(), from_at_, typeid(Tobj).hash_code(), t, 0);
+        make_tuple<>(res._id, from_at_, typeid(Tobj).hash_code(), t, res._dim[0]);
     return res;
   }
 

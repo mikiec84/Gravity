@@ -157,12 +157,12 @@ unsigned PowerNet::get_nb_active_gens() const {
 }
 
 unsigned PowerNet::get_nb_active_bus_pairs() const {
-    unsigned nb=0;
-    for (auto bp: _bus_pairs._keys) {
+  unsigned nb = _bus_pairs._keys.size();
+//    for (auto bp: _bus_pairs._keys) {
 //        if (bp->_active) {
-            nb++;
+//            nb++;
 //        }
-    }
+//    }
     return nb;
 }
 
@@ -259,9 +259,9 @@ void PowerNet::time_expand(unsigned T) {
 int PowerNet::readGAMS(const string& fname) {
     double pi = 4.*atan(1.);
     string name;
-    double kvb = 0;
+    //double kvb = 0;
     //    int id = 0;
-    unsigned index = 0;
+    //unsigned index = 0;
     cout << "Loading file " << fname << endl;
     ifstream file(fname, std::ifstream::in);
     if(!file.is_open()) {
@@ -2508,7 +2508,8 @@ unique_ptr<Model> PowerNet::build_fixed_ACOPF_N_1(PowerModelType pmt, int output
     //    ACOPF->print_expanded();
     //    ACOPF->_obj*=1e-4;
     
-    unsigned nb_added = 0, nb_total = 0, nb_gens_cont = _conting_gens.size(), nb_lines_cont = _conting_lines.size();
+    unsigned nb_added = 0, nb_total = 0, nb_gens_cont = _conting_gens.size(),
+  nb_lines_cont = _conting_lines.size();
     clog << "Building contingency models for lines." << endl;
     auto cont = 0;
     double start_built_time = get_wall_time();
@@ -2673,7 +2674,7 @@ unique_ptr<Model> PowerNet::build_fixed_ACOPF_N_1(PowerModelType pmt, int output
     return ACOPF;
 }
 
-vector<param<>> PowerNet::signs() {
+vector<param<>> PowerNet::signs()
     vector<param<>> res;
     string key;
     size_t idx;

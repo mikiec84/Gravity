@@ -22,7 +22,7 @@ int main (int argc, const char * argv[])
     std::cout << "WELCOME, THIS IS AN IMPLEMENTATION OF THE STABLE SET PROBLEM AND SOME OF ITS RELAXATIONS IN GRAVITY\n";
     
     Net graph;
-    const char* fname = "../../data_sets/stable_set/p.3n150.txt";
+    const char* fname = "../../data/stable_set/p.3n150.txt";
     graph.read_adjacency_matrix(fname);
     
     Model model;
@@ -47,7 +47,8 @@ int main (int argc, const char * argv[])
     model.add_constraint(c.in(graph.arcs));
     
     /**  Solver **/
-    SolverType stype = gurobi;
+  //SolverType stype = gurobi;
+  SolverType stype = cplex;
     solver s(model,stype);
     s.run();
     return 0;

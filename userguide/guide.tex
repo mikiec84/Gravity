@@ -1,77 +1,296 @@
-\documentclass[final,5p,times,twocolumn]{elsarticle}
-%\documentclass[preprint]{elsarticle}
-\usepackage{graphics}
-\usepackage{graphicx}
-\usepackage[numbers]{natbib}
-\usepackage{amsfonts,amsmath,amsthm}
-\usepackage{booktabs,color,xtab}
-\usepackage{multirow}
-\DeclareFontFamily{U}{mathx}{\hyphenchar\font45}
-\DeclareFontShape{U}{mathx}{m}{n}{
- <5> <6> <7> <8> <9> <10>
- <10.95> <12> <14.4> <17.28> <20.74> <24.88>
- mathx10}{}
-\DeclareSymbolFont{mathx}{U}{mathx}{m}{n}
-\DeclareFontSubstitution{U}{mathx}{m}{n}
-\DeclareMathAccent{\vex}{0}{mathx}{"71}
-\DeclareMathAccent{\wideparen}{0}{mathx}{"75}
-\usepackage[bookmarks=false,colorlinks]{hyperref}
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{svg}
+\usepackage{minted}
+%\usemintedstyle{borland}
+
+%\titlespacing*{\section}{0pt}{1.1\baselineskip}{\baselineskip}
+
+\usepackage{float}
+\floatstyle{ruled}
+\newfloat{code}{thp*}{lop}
+\floatname{code}{Code Block}
+
+\usemintedstyle{xcode}
+
+\usepackage{lscape}
+
+\usepackage{hyperref}
 \hypersetup{
-    linkcolor=blue,   
-    citecolor=red,
-    urlcolor=magenta
-    }
+	colorlinks=true, 
+	breaklinks=true,
+	urlcolor= blue, 
+	linkcolor= blue, 
+	citecolor=red, 
+}
 
-\newcommand{\cav}{\widehat}
-\newcommand{\bigcurly}[1]{\left\{#1\right\}}
-\newcommand{\real}{\mathbb{R}} % field
-\newcommand{\realS}{\mathbb{S}} % space of real symmetric matrices
-\newcommand{\conv}{\operatorname{conv}} % standard definition of convex hull
-\newcommand{\epi}{\operatorname{epi}}
-\newcommand{\abs}[1]{{\left|{#1}\right|}}
-\newcommand{\scp}[2]{\langle{#1},{#2}\rangle} % inner product.
-\newcommand{\Diag}{\operatorname{Diag}} % Diag of vectors: matrix
-\newcommand{\diag}{\operatorname{diag}} %diag of matrix: vector
-\newcommand{\Schur}{\mathcal{S}}
-\newcommand{\proj}{\operatorname{Proj}} % projection
-\newcommand{\vK}{{\mathbf{K}}}
-\newcommand{\K}{\mathcal{K}}% set
-\newcommand{\F}{\mathcal{F}}
-\newcommand{\C}{\mathcal{C}}
-\newcommand{\A}{\mathcal{A}}
-\newcommand{\Po}{\mathcal{P}} % Power set
-\newcommand{\subto}{\textrm{s.t.}} % subject to 
-\newcommand{\allzeros}{\mathbf{0}}
-\newcommand{\BQP}{\operatorname{BQP}}
-\newcommand{\QPB}{\operatorname{QPB}}
-\newcommand{\ext}{\operatorname{ext}}
-\newcommand{\bX}{\overline{X}}
-\newcommand{\bx}{\overline{x}}
-\newcommand{\by}{\overline{y}}
-\newcommand{\normone}[1]{\left\|{#1}\right\|_1}
-\newcommand{\vx}{\mathbf{x}}
-\newtheorem{Assumption}{\bf Assumption}
-\newtheorem{remark}{\bf Remark}
-\newtheorem{Theorem}{Theorem}
-\newtheorem{thm}[Theorem]{\bf Theorem}
-\newtheorem{lemma}{\bf Lemma}
-\newtheorem{cor}{\bf Corollary}
-\newtheorem{definition}{\bf Definition}
-\newtheorem{prop}{\bf Proposition}
-\newtheorem{example}{Example}
-\journal{Operations Research Letters}
-\begin{document} 
+\def\vec#1{\ensuremath{\mathchoice
+{\mbox{\boldmath$\displaystyle\mathbf{#1}$}}
+{\mbox{\boldmath$\textstyle\mathbf{#1}$}}
+{\mbox{\boldmath$\scriptstyle\mathbf{#1}$}}
+{\mbox{\boldmath$\scriptscriptstyle\mathbf{#1}$}}}}
 
-\begin{frontmatter}
-\title{The user guide to Gravity }
-\ead{guanglei.wang13@gmail.com}
-\cortext[corresponding]{Corresponding author.}
+
+\newcommand{\tensor}{{\sc TensorFlow}}
+\newcommand{\theano}{{\sc Theano}}
+\newcommand{\ipopt}{{\sc Ipopt}}
+\newcommand{\cplex}{{\sc Cplex}}
+\newcommand{\gurobi}{{\sc Gurobi}}
+\newcommand{\xpress}{{\sc XpressMP}}
+\newcommand{\minisat}{{\sc Minisat}}
+\newcommand{\scip}{{\sc Scip}}
+\newcommand{\bonmin}{{\sc Bonmin}}
+\newcommand{\couenne}{{\sc Couenne}}
+\newcommand{\ampl}{{\sc Ampl}}
+\newcommand{\casadi}{{\sc CasADI}}
+\newcommand{\Gravity}{{\sc Gravity}}
+\newcommand{\mosek}{{\sc Mosek}}
+\newcommand{\gams}{{\sc Gams}}
+\newcommand{\aimms}{{\sc AIMMS}}
+\newcommand{\minizinc}{{\sc Minizinc}}
+\newcommand{\pyomo}{{\sc Pyomo}}
+\newcommand{\jump}{{\sc JuMP}}
+
+\setlength{\parskip}{0cm}
+\setlength{\parindent}{1em}
+
+\title{\Gravity{}: A Modeling Language for Mathematical Optimization and \\Machine Learning}
+
+
+
+\author{Hassan Hijazi\inst{*,1,2}, Guanglei Wang\inst{2}, Carleton Coffrin\inst{1}}
+%
+\institute{Los Alamos National Laboratory, Los Alamos, New Mexico, USA\\
+${^*}$ corresponding author, \email{hlh@lanl.gov}\\
+\and
+The Australian National University, Canberra, ACT, Australia
+}
+
+\begin{document}
+
+\maketitle
 \begin{abstract}
+\Gravity{} is an open source, scalable, memory efficient modeling language for solving mathematical models in Optimization and Machine Learning. It exploits structure to reduce function evaluation time including Jacobian and Hessian computation. \Gravity{} is implemented in c++ with a flexible interface allowing the user to specify the numerical accuracy of variables and parameters. It is also designed to handle iterative model solving, convexity detection, distributed algorithms, and constraint generation approaches. 
+When compared to state-of-the-art modeling languages such as \jump{}, \Gravity{} is 5 times faster in terms of function evaluation and up to 60 times more memory efficient. It also dominates commercial languages such as \ampl{} on structured models including quadratically-constrained and polynomial programs. This short paper serves as a quick introduction to the language, presenting its main features along with some preliminary results, an extended version of the work is in progress.
 \end{abstract}
-\begin{keyword}
-\end{keyword}
-\end{frontmatter}
 
 \section{Introduction}
+While modeling languages play a critical role across all scientific areas, they constitute a key stone in Computer Science and Applied Mathematics. Modeling tools are ubiquitous to fields like Constraint Programming (CP), Artificial Intelligence (AI) and Operations Research (OR). A non-exhaustive list of existing modeling languages include \ampl{} \cite{ampl}, \jump{} \cite{DunningHuchetteLubin2017}, \gams{} \cite{gams}, \aimms{} \cite{aimms}, \casadi{} \cite{casadi}, \pyomo{} \cite{hart2011pyomo,hart2017pyomo}, and \minizinc{} \cite{minizinc}.
+With increasingly large data inputs and the desire to model complex nonlinear functions, the efficiency of modeling tools is becoming critical for the implementation of scalable solution algorithms. This is especially true for Machine Learning (ML) applications dealing with large data sets and nonlinear learning functions. Note that tools like \tensor \cite{tensor} and \theano \cite{theano} are highly specialized modeling languages dedicated to deep learning. Modern mathematical modeling languages need to offer a new set of features. These include the ability to efficiently solve multiple replica of the same model, to implement lazy constraint generation, to automatically detect convexity, to change numerical precision of variables and parameters, to parallelize subproblem solving, and to handle large data sets, just to name a few. \Gravity{} is designed with these requirements in mind. 
 
+\section{Design Choices}
+\Gravity{}'s efficiency in speed and memory can mainly be attributed to its design choices. These choices are based on exploiting structure. Structure is what differentiate a Linear Program (LP) from a Quadratic Program (QP) from a general Nonlinear Program (NLP). Problems solved by scientists and practitioners will inherently have structure, and exploiting it is key. It is not necessary to build an expression tree of your model if the constraints and the objective have a predefined structure, e.g., are linear, quadratic or polynomial. 
+
+{\bf Template Constraints.} Structure can also be exploited by considering the fact that most mathematical formulations have a small set of ``template" constraints, i.e., an abstract/symbolic representation of the constraint where only variables and parameters' indices change.
+
+{\bf Flexible Numerical Precision.} Being able to dynamically  select the numerical precision of variables, parameters and functions is another critical design choice made in \Gravity{}.
+
+{\bf Model Readability.} Readability of the models was also a main driver during the design process. Examples presented in subsequent sections will reveal the effort put into making the formulations as user-friendly as possible.
+
+{\bf Efficiency.}
+Gravity is implemented in c++, allowing for a flexible memory management and various code optimization under the hood.
+
+%\subsection{Motivation}
+%\Gravity{} was initially built to improve the efficiency of solving Semi-Definite Programs using a lazy constraint generation approach based on polynomial determinant constraints \cite{pscc_16}. This line of work will not be covered here due to space limitation.
+\section{Building Blocks for Mathematical Models}
+\subsection{Constants, Parameters and Variables}
+All classes inherit from the primitive constant class.
+The type and the numerical precision of a constant can be dynamically set by the user.
+Currently supported types are presented in Code Block \ref{code:const}.
+\begin{code}[h!]
+\caption{Declaring Constants in \Gravity{}}
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+#include <gravity/solver.h>
+using namespace gravity;
+constant<> cd; /* Default type is double */
+constant<bool> cb; /* Binary constant */
+constant<short> cs; /* Integer constant with short precision */
+constant<int> ci; /* integer constant */
+constant<float> cf; /* Real constant with float precision */
+constant<double> cd; /* Real constant with double precision */
+constant<long double> cld; /* Real constant with long double precision */
+\end{minted}
+\label{code:const}
+\end{code}
+
+Parameters are used to represent named constants, i.e., input data that is assigned a name and a set of values.
+The same types presented in Code Block~\ref{code:const} apply for parameters. Code Block~\ref{code:param2} presents examples on declaring different parameters and assigning corresponding values.
+%\begin{code}[h!]
+%\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+%param<> p("def_p"); /* Default type is double */
+%p("bus1") = 0.3; /* Adding bus1 to the set of indices and 
+%assigning corresponding real value */
+%p("bus2") = 2.3; /* Adding bus2 to the set of indices and 
+%assigning corresponding real value */
+%p.print(); /* Will print:  def_p = [ (bus1=0.300000) (bus2=2.300000) ]; */
+%p.set_val("bus1", 0.6); /* The function set_val can be used to 
+%set the value of the corresponding indices */
+%p.print();/* Will print:  def_p = [ (bus1=0.600000) (bus2=2.300000) ]; */
+%\end{minted}
+%\caption{Declaring Parameters in \Gravity{}}
+%\label{code:param1}
+%\end{code}
+\begin{code}[h!]
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+param<int> p("int_p"); /* Integer constant */
+p(1) = 0; /* Indexing can also be done using string indices */
+p(5) = 1;
+p.print();/* Will print:  int_p = [ (1=0) (5=1) ];*/
+\end{minted}
+\caption{Declaring Parameters in \Gravity{}}
+\label{code:param2}
+\end{code}
+Finally, Code Block \ref{code:var} \mbox{illustrates} the declaration of variables, which are treated as bounded parameters.
+\begin{code}[h!]
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+var<> x("x", -0.1, 3.5); /* Default type is double */
+x(0).print(); /* Will print: x[0] in  [ -0.1, 3.5]; */
+
+param<int> lb("lb"), ub("ub");
+lb("bus1") = -1;
+ub("bus1") = 2;
+var<int> y("y", lb, ub);    
+y("bus1").print(); /* Will print: y[bus1] in  [ -1, 2]; */
+
+/* Declaring an n-dimensional vector of binary variables */
+auto Rn = R(n);
+var<bool> z("z");
+z.in(Rn);
+\end{minted}
+\caption{Declaring Variables in \Gravity{}}
+\label{code:var}
+\end{code}
+
+\subsection{Functions and Constraints}
+In order to exploit structure, the building blocks of a function are split into four different parts.
+A function has a linear part, a quadratic part, a polynomial part, and an expression tree as depicted in equation \ref{eq:func}. 
+\begin{equation}
+\label{eq:func}
+f(\vec x) = \vec a^T \vec x + \vec x^TQ\vec x + P(\vec x) + E(\vec x),
+\end{equation}
+where $a^T$ denotes the transpose of the coefficient vector appearing in the linear part, $Q$ represents the quadratic coefficients matrix, $P$ denotes the polynomial part and $E$ represents the expression tree gathering the remaining nonlinear terms in $f$. $E(\vec x)$ can represent either unary or binary expressions, unary operators currently supported in \Gravity{} include $exp, log, sqrt, sin,$ and $cos$. Binary operators include multiplication, addition, subtraction, division and power.
+Depending on the function type, the corresponding part will be populated.
+A constraint is a function with a right-hand-side and an operator that can take values from $\le, \ge$ and $=$. 
+Constraint examples are given in Code Block \ref{code:func}.
+\begin{code}[h!]
+\caption{Declaring Constraints in \Gravity{}}
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+Constraint cstr1("cstr1");
+cstr1 += power(x,4) - power(y, 2) + p*x*y + 2*x;
+cstr1 <= 2;
+cstr1.print(); /* Will print: cstr1 : x^4 + (int_p)y*x - y^2 + 2x <= 2; */
+Constraint cstr2("cstr2");
+cstr2 += cos(p*x) + expo(2*y);
+cstr2 = 2; 
+cstr2.print(); /* Will print: cstr2 : cos((int_p)x) + exp(2y) = 2; */
+\end{minted}
+\label{code:func}
+\end{code}
+\subsection{Convexity Detection}
+\Gravity{} has built-in detection procedures for convexity preserving operations and implements a set of sufficient conditions for checking function's convexity.
+Code Block~\ref{code:conv} illustrates this feature on a quadratic constraint.
+\begin{code}[h!]
+\caption{Convexity Detection}
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+param<int> a("a");
+a(0) = -1;
+a(5) = -3;
+a.print(); /* Will print a = [ (0=-1) (5=-3) ]; */
+auto f = a*power(x,2); /* f is a template constraint with two indices:
+0 and 5. */
+f.print(); /* Will print: Concave function: f(x) = (a)x^2, Gravity
+detects that all instances of "a" are negative. */
+f *= a;
+f.print(); /* Will print: Convex function: f(x) = (a^2)x^2 */
+\end{minted}
+\label{code:conv}
+\end{code}
+
+\subsection{Abstract Models: Template Constraints}
+Template constraints can help reduce computational time for operations that only require the symbolic structure of underlying functions, e.g., computing derivatives and detecting convexity. Code Block \ref{code:indexing} showcases template constraints and the way \Gravity{} handles their indexing.
+\begin{code}[h!]
+\caption{Template Constraints in \Gravity{}}
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+auto graph = Net();
+auto n1 = new Node("n1");
+auto n2 = new Node("n2");
+graph.add_arc(new Arc(n1,n2));
+auto R2p = R_p(2);/* 2d R+ space */
+var<> x("x"), y("y"), z("z");
+z.in(R2p);
+/* x and y are unbounded real variables, z is a non-negative 2d vector */
+/* Second-order cone constraints */
+Constraint SOC("SOC");
+SOC =  power(x, 2) + power(y, 2) - z.from()*z.to() ;
+SOC.in(graph.arcs) <= 0;
+SOC.print_expanded(); 
+/* Will print: SOC : x[n1,n2]^2 + y[n1,n2]^2 - z[n1]*z[n2] <= 0; */
+\end{minted}
+\label{code:indexing}
+\end{code}
+
+{\bf Graph aware}.
+Note that \Gravity{} has an underlying graph implementation and indexing can be done on nodes, edges, and node pairs (pairs of nodes joined by one or more edges) of the graph as shown in Code Block~\ref{code:indexing}. Some useful graph algorithms such as tree decomposition and cycle basis computation are also implemented in \Gravity.
+\subsection{Models and Solvers}
+A model is a collection of variables, constraints and an objective function. Populating a model can be done by invoking the function presented in Code Block~\ref{code:model}.
+\begin{code}[h!]
+\caption{Model Declaration}
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+Model SOCP("Second-Order Cone Program");
+SOCP.add_var(x^10); /* Adding a variable vector of size 10 */
+SOCP.add_constraint(SOC.in(node_pairs) <= 0); /* Adding second-order 
+constraints indexed by node_pairs (see previous Code Block) */
+SOCP.min(x*y - 2*y); /* Declaring the objective function */
+\end{minted}
+\label{code:model}
+\end{code}
+
+\Gravity{} currently links to a small number of solvers including \cplex{} \cite{cplex}, \gurobi{} \cite{gurobi}, \ipopt{}\cite{ipopt}, \bonmin{}\cite{bonmin} and \mosek{} \cite{mosek}. We plan to support more solvers such as \scip{} \cite{scip}, \xpress{} \cite{xpress}, \couenne{} \cite{couenne} and SAT solvers such as \minisat{} \cite{minisat} in the near future.
+The way to invoke a solver is illustrated in Code Block~\ref{code:solver}.
+
+\begin{code}[h!]
+\caption{Invoking Solvers}
+\begin{minted}[linenos,fontsize=\footnotesize]{cpp}
+if (use_cplex) {
+    solver SCOPF_CPX(SOCP, cplex);
+    SCOPF_CPX.run(output = 0, relax = false, tol = 1e-6);
+}
+else {
+    solver SCOPF(SOCP,ipopt);
+    SCOPF.run(output = 0, relax = false, tol = 1e-6, "ma27", mehrotra = "no");
+    }
+\end{minted}
+\label{code:solver}
+\end{code}
+    
+\section{Symbolic vs. Automatic Differentiation}
+Automatic Differentiation (AD) has numerous benefits, including the ability to compute derivative for non-mathematical structures, e.g., computer code. There is an extensive literature on the subject, we only provide a few references herein \cite{book:rall1981,Griewank:1996:AAP:229473.229474,rall1996introduction,fournier2012ad,CppAD2012}. However, the common belief that AD outperforms Symbolic Differentiation (SD) (see \cite{fournier2012ad,Sehyoun_17}) on mathematical models is \mbox{inaccurate}. Let us emphasize that AD is currently the norm in all state-of-the-art mathematical modeling tools including ML frameworks such as \theano{} \cite{theano} and \tensor{}~\cite{tensor}.
+In this work, we oppose the common belief, showing that SD can dominate AD when exploiting structure and using template constraints. By avoiding redundant storage of symbolic nonlinear expressions, our SD outperforms state-of-the-art AD implementations (e.g., \cite{DunningHuchetteLubin2017}, which uses graph coloring methods for exploiting sparsity of the Hessian matrix). The former approach is also better from a memory consumption point of view, as will be highlighted in the numerical experiments section.
+
+\section{Numerical Experiments}
+Numerical experiments were conducted on HPE ProLiant XL170r servers featuring two Intel2.10 GHz 16 Core CPUs and 128 GB of memory.
+\ipopt{} v3.12 \cite{ipopt} compiled with HSL \cite{hsl_lib} was used for solving Nonlinear Programs. In the results tables,
+``mem." indicates that available memory was exceeded for the corresponding instance.
+
+
+% \begin{itemize}
+% \item test cases
+% \item benchmark system
+% \item solver versions / configurations
+% \item julia no compile time
+% \end{itemize}
+
+\subsection{AC Optimal Power Flow}
+The Alternating Current Optimal Power Flow (ACOPF) Problem is a fundamental building block in Power Systems Optimization.
+The problem admits two nonconvex NLP formulations, one known as the polar formulation (featuring \mbox{trigonometric} functions) and one known as the rectangular formulation (quadratically-constrained).
+A comprehensive description of the two formulations can be found in \cite{qc_mpc_17}.
+Figure \ref{fig:acopf} is a performance profile illustrating percentage of instances solved as a function of time.
+The figure compares \Gravity{}, \jump{} and \ampl{}'s NL interface (used by \ampl{} and \pyomo) on all standard instances found in the pglib benchmark library \cite{pglib_opf}. The recorded time corresponds to the wall-clock time spent inside \ipopt{}. Figure \ref{fig:acopf} indicates that \mbox{\Gravity{}} outperforms both \jump{} and \ampl{}'s NL interface on all instances, with speed improvements up to 300\%.
+Let us emphasize that, for this problem, half of the computational time is dedicated to function evaluation (including Jacobian and Hessian). While we observe a factor 3 improvement in the total run time, the underlying improvement in function evaluation is a factor of 5. 
+Table \ref{table:acopf} reports detailed results on both formulations along with runtimes corresponding to the Second-Order Cone relaxation introduced in \cite{Jabr_06}.
+Note that $|N|$ and $|E|$ respectively denote the number of nodes and edges in the underlying power network. The largest instance has $117,370$ variables, $187,371$ constraints, $666,023$ non zeros in the Jacobian, and $299,384$ non zeros in the Hessian matrix.
+
+\bibliographystyle{splncs}
+%\bibliography{references.bib}
 \end{document}
+
