@@ -396,20 +396,14 @@ int main (int argc, const char * argv[])
     SOC =  power(x, 2) + power(y, 2);
     SOC.in(bus_pairs) <= 0;
     SOC.print();
-
+  
     func_ poly;
-    poly = power(x, 2) + power(y, 2) + 2*x*y;
-    auto poly_approx = poly.get_derivative(x);
+    poly = power(x, 2) + power(y, 2) - 2*x*y - 2*x;
+    func_ poly_approx = poly.get_derivative(x);  // the indice has a problem.
     cout << poly_approx.to_str() << endl;
-    poly_approx.print_expanded();
+  
+   poly_approx.print_expanded();
     poly.print_expanded();
-    
-//    auto cc = p*p + q*q;
-//    DebugOn(cc.to_str(true) << endl);
-//    auto cc1 = cc * -1;
-//    DebugOn(cc1.to_str(true) << endl);//SHOULD PRINT CONCAVE
-//    cc1 += 2*p*q;
-//    DebugOn(cc1.to_str(true) << endl);
 
     
     param<int> a("a");

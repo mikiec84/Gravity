@@ -1375,6 +1375,7 @@ namespace gravity{
         _is_vector = c._is_vector;
         _is_matrix = c._is_matrix;
         _dim = c._dim;
+        _nb_instances = 1; // this should be initialized. 
 
         switch (c.get_type()) {
             case binary_c: {
@@ -1584,7 +1585,7 @@ namespace gravity{
                 _is_vector = c._is_vector;
                 _is_matrix = c._is_matrix;
                 _dim = c._dim;
-                _nb_instances = c.get_nb_instances();
+                _nb_instances = c.get_nb_instances();  //questionable? 
                 if (!_vars->empty()) {
                     _ftype = nlin_;
                 }
@@ -1665,7 +1666,7 @@ namespace gravity{
                 _is_vector = c._is_vector;
                 _is_matrix = c._is_matrix;
                 _dim = c._dim;
-                _nb_instances = c.get_nb_instances();
+                _nb_instances = max((size_t) 1, c.get_nb_instances());
                 if (!_vars->empty()) {
                     _ftype = nlin_;
                 }
@@ -1824,9 +1825,6 @@ namespace gravity{
         if (f._indices) {
             _indices = make_shared<vector<string>>(*f._indices);
         }
-        
-        
-
     }
 
     bool func_::operator==(const func_& f) const{
@@ -2350,7 +2348,7 @@ namespace gravity{
             return *this;
         }
         if (is_unit()) {
-            *this = func_(c);
+            *this = func_(c); //go to c.is_function.
             return *this;
         }
         if (c.is_unit()) {
@@ -2535,7 +2533,8 @@ namespace gravity{
             _evaluated = false;
             return *this;
         }
-        /* Case where the multiplication invlolves multiplying variables/parameters together, i.e., they are both parametric or both include variables  */
+        /* Case where the multiplication invlolves multiplying variables/parameters together,
+         i.e., they are both parametric or both include variables  */
         if (c.is_function()) {
             func_* f = (func_*)&c;
             constant_* coef;
@@ -5229,7 +5228,7 @@ namespace gravity{
                 return res;
             }
             else {
-                return func_(c1) *= c2;
+              return func_(c1) *= c2;
             }
         }
         else {
@@ -6167,9 +6166,9 @@ namespace gravity{
         string str;
         constant_* c_new = _coef;
         param_* p_new = (param_*)_p;
-        if (p_new->get_dim(inst)==0) {
-            return str;
-        }
+//        if (p_new->get_dim(inst)==0) {
+//            return str;
+//        }
         unsigned dim = 1;
         if (c_new->_is_transposed) {
             dim = p_new->get_nb_instances(inst);
@@ -6370,12 +6369,14 @@ namespace gravity{
                 if (coef->_is_vector || coef->_is_matrix) {
                     coef->transpose();
                 }
-                if(lt.second._sign) {
-                    res += *coef*(*lt.second._p->second);
-                }
-                else {
-                    res -= *coef*(*lt.second._p->second);
-                }
+              res.insert(lt.second._sign,*coef,*lt.second._p->second);
+//                if(lt.second._sign) {
+//                  //res += *coef*(*lt.second._p->second);
+//                  res.insert(lt.second._sign,*coef,*lt.second._p->second);
+//                }
+//                else {
+//                    res -= *coef*(*lt.second._p->second);
+//                }
                 delete coef;
                 if (lt.second._coef->_is_vector || lt.second._coef->_is_matrix) {
                     res._is_vector = true;
@@ -6388,12 +6389,14 @@ namespace gravity{
                 if (coef->_is_vector || coef->_is_matrix) {
                     coef->transpose();
                 }
-                if(lt.second._sign) {
-                    res += *coef*(*lt.second._p->first);
-                }
-                else {
-                    res -= *coef*(*lt.second._p->first);
-                }
+              res.insert(lt.second._sign,*coef,*lt.second._p->first);
+//                if(lt.second._sign) {
+//                    //res += *coef*(*lt.second._p->first);
+//                  res.insert(lt.second._sign,*coef,*lt.second._p->first);
+//                }
+//                else {
+//                    res -= *coef*(*lt.second._p->first);
+//                }
                 delete coef;
                 if (lt.second._coef->_is_vector || lt.second._coef->_is_matrix) {
                     res._is_vector = true;
@@ -6401,12 +6404,6 @@ namespace gravity{
                     res._dim = lt.second._coef->_dim;
                 }
             }
-            //CHECK THIS
-//            if (lt.second._coef->_is_vector || lt.second._coef->_is_matrix) {
-//                res._is_vector = true;
-//                res._nb_instances = lt.second._coef->get_nb_instances();
-//                res._dim = lt.second._coef->_dim;
-//            }
         }
         for (auto &lt: *_pterms) {
             for (auto &p: *lt.second._l) {
@@ -6580,22 +6577,10 @@ namespace gravity{
         if (_val->size()<_nb_instances) {
             _val->resize(_nb_instances);
         }
-//        if (!_val) {
-//            throw invalid_argument("_val not defined for function.\n");
-//        }
         if (is_constant() && _evaluated) {
             if (is_number()) {
                 return _val->at(0);
             }
-//            if (i>=_val->size()) {
-//                throw invalid_argument("error");
-//            }
-//            if (_val->at(i) != force_eval(i)) {
-//                throw invalid_argument("error");
-//            }
-//            if (_val->size()<=i){
-//                throw invalid_argument("Func eval out of range");
-//            }
             return _val->at(i);
         }
         double res = 0;
@@ -6610,40 +6595,17 @@ namespace gravity{
         }
         res += poly_eval(_cst,i);        
         if (_expr) {
-//            if (_expr->is_uexpr()) {
-//                auto ue = (uexpr*)_expr.get();
-////                if (ue->_son->is_constant()) {
-////                _nb_instances = max(_nb_instances, ue->_son->_nb_instances);
-////                    _val->resize(max(_val->size(),ue->_son->_nb_instances));//TODO is this necessary?
-////                }
-//
-//            }
-//            else {
-//                auto be = (bexpr*)_expr.get();
-//                if(!be->is_inner_product()) {
-//                    _nb_instances = max(_nb_instances, max(be->_lson->_nb_instances,be->_rson->_nb_instances));
-//                }
-////                if (be->_lson->is_constant() && be->_rson->is_constant()) {
-////                    _val->resize(max(_val->size(),max(be->_lson->_nb_instances,be->_rson->_nb_instances)));
-////                }
-//
-//            }
-            res += _expr->eval(i);
+          res += _expr->eval(i);
         }
         if (is_number()) {
             _val->at(0) = res;
             _evaluated = true;//TODO fix this
         }
         else {
-//            if (i>=_val->size()) {
-//                throw invalid_argument("error");
-//            }
             if (is_constant() && i==_val->size()-1) {
                 _evaluated = true;
             }
-//            if (_val->size()<=i){
-//                throw invalid_argument("Param eval out of range");
-//            }
+          // need to check that _val.size() >= i.
             _val->at(i) = res;
         }
         return res;

@@ -30,7 +30,7 @@ namespace gravity {
         bool                            _is_transposed = false; /**< True if the constant is considered as a transposed vector */
         bool                            _is_vector = false; /**< True if the constant is considered as a vector */
         bool                            _is_matrix = false; /**< True if the constant is considered as a matrix */
-        vector<size_t>                  _dim; /*<< dimension of current object. Implmented as a vector to account for multidimentional indices. */
+        vector<size_t>                  _dim; /*<< dimension of current object. Implemented as a vector to account for multidimentional indices. */
         
         virtual ~constant_(){};
         CType get_type() const { return _type;}

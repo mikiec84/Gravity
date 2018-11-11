@@ -537,8 +537,7 @@ class func_ : public constant_ {
   shared_ptr<map<unique_id, shared_ptr<func_>>>
       _dfdx; /**< A map storing the first derivatives of f per variable name*/
 
-  size_t _nb_instances =
-      1; /**< Number of different instances this constraint has (different
+  size_t _nb_instances = 1; /**< Number of different instances this constraint has (different
             indices, constant coefficients and bounds, but same structure).>>**/
 
   bool _new = true; /**< Will become false once this function is added to a
