@@ -149,8 +149,6 @@ param_* Model::get_var(int id) const{
     return _vars.at(id);
 }
 
-
-
 /* Modifiers */
 
 void Model::reindex(){

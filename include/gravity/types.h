@@ -180,17 +180,6 @@ namespace gravity{
         
         
         indices& operator=(const indices& cpy){
-//            auto n = cpy._indices->size();
-//            _indices_map = make_shared<map<string,unsigned>>();
-//            _indices = make_shared<vector<string>>();
-//            _indices->resize(n);
-//            for (int i = 0; i < n; i++){
-//                (*_indices)[i] = cpy._indices->at(i);
-//                (*_indices_map)[_indices->at(i)]= i;
-//            }
-//            for (auto &pair:cpy._excluded_indices) {
-//                _excluded_indices.insert(pair);
-//            }
             _indices_map = cpy._indices_map;
             _excluded_indices = cpy._excluded_indices;
             _indices = cpy._indices;
@@ -215,34 +204,6 @@ namespace gravity{
         indices(indices&& cpy){
             *this=move(cpy);
         }
-        
-//        template<typename Tobj>
-//        indices(const vector<Tobj*>& vec){
-//            _indices_map = make_shared<map<string,unsigned>>();
-//            _indices = make_shared<vector<string>>();
-//            unsigned i = 0;
-//            for (auto idx:vec) {
-//                if(idx->_active){
-//                    _indices->push_back(idx->_name);
-//                    (*_indices_map)[idx->_name]= i;
-//                    i++;
-//                }
-//            }
-//        }
-//        
-//        template<typename Tobj>
-//        indices(const vector<Tobj>& vec){
-//            _indices_map = make_shared<map<string,unsigned>>();
-//            _indices = make_shared<vector<string>>();
-//            unsigned i = 0;
-//            for (auto idx:vec) {
-//                if(idx._active){
-//                    _indices->push_back(idx._name);
-//                    (*_indices_map)[idx._name]= i;                    
-//                    i++;
-//                }
-//            }
-//        }
 
         template<typename Tobj>
         indices(const vector<Tobj*>& vec){

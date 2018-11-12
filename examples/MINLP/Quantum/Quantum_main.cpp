@@ -142,7 +142,6 @@ int main (int argc, char * argv[])
         }
     }
     
-    
     /** Indices **/
     auto d_ids = indices(1,d);/*< Depth indices */
     auto q_ids = indices(1,n);/*< Qubit indices */

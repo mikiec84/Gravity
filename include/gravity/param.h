@@ -253,7 +253,7 @@ class param_ : public constant_ {
 };
 
 /** A parameter can be a bool, a short, an int, a float or a double*/
-template <typename type>
+template <typename type = double>
 class param : public param_ {
  protected:
  public:
@@ -1458,7 +1458,7 @@ class param : public param_ {
           key += "," + idx;
           auto index = _indices->size();
           auto pp = param_::_indices->insert(make_pair<>(key, index));
-          if (pp.second) { 
+          if (pp.second) {
             _val->resize(max(_val->size(), index + 1));
             _dim[0] = max(_dim[0], _val->size());
             _rev_indices->resize(_val->size());
@@ -1516,7 +1516,7 @@ class param : public param_ {
         key = a->_name + "," + to_string(t);
         auto index = _indices->size();
         auto pp = param_::_indices->insert(make_pair<>(key, index));
-        if (pp.second) { 
+        if (pp.second) {
           _val->resize(max(_val->size(), index + 1));
           _dim[0] = max(_dim[0], _val->size());
           _rev_indices->resize(_val->size());
@@ -1529,7 +1529,8 @@ class param : public param_ {
       res._dim[inst] = res._ids->at(inst).size();
       ++inst;
     }
-    res._unique_id = make_tuple<>(res._id, in_arcs_, typeid(Node).hash_code(), 0, res._dim[0]);
+    res._unique_id = make_tuple<>(res._id, in_arcs_, typeid(Node).hash_code(),
+                                  0, res._dim[0]);
     res._is_indexed = true;
     return res;
   }
@@ -1709,8 +1710,8 @@ class param : public param_ {
       res._dim[inst] = res._ids->at(inst).size();
       ++inst;
     }
-    res._unique_id = make_tuple<>(res._id, out_arcs_at_,
-                                  typeid(Node).hash_code(), 0, 0);
+    res._unique_id =
+        make_tuple<>(res._id, out_arcs_at_, typeid(Node).hash_code(), 0, 0);
     res._is_indexed = true;
     return res;
   }
@@ -2571,19 +2572,20 @@ class param : public param_ {
   template <typename Tobj>
   param from_at(const vector<Tobj*>& vec, const int t) {
     param res(this->_name);
-    string key;
-    vector<string> keys;
-    for (auto it = vec.begin(); it != vec.end(); it++) {
+     string key;
+     vector<string> keys;
+     for (auto it = vec.begin(); it != vec.end(); it++) {
       if (!(*it)->_active) {
         continue;
       }
       key = (*it)->_src->_name + "," + to_string(t);
       keys.push_back(key);
     }
-    res = in(keys);
-    res._name += "from_at_" + vec.front()->_type_name;
-    res._unique_id =
-        make_tuple<>(res._id, from_at_, typeid(Tobj).hash_code(), t, res._dim[0]);
+     res = in(keys);
+     res._name += "from_at_" + vec.front()->_type_name;
+     res._unique_id =
+        make_tuple<>(res._id, from_at_, typeid(Tobj).hash_code(), t,
+        res._dim[0]);
     return res;
   }
 

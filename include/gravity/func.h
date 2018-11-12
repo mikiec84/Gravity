@@ -2820,7 +2820,7 @@ class func_ : public constant_ {
     return *this;
   }
 
-  func_& in_at(const vector<Node*>& vec, const int t) {
+  func_& in_at(const vector<Node*>& vec, const unsigned int t) {
     _nb_vars = 0;
     _nb_instances = 0;
     string key;

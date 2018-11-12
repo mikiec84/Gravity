@@ -9,14 +9,6 @@
 #include "global.hpp"
 #include <iomanip>
 
-template <typename T>
-std::string to_string_with_precision(const T a_value, const int n = 6)
-{
-    std::ostringstream out;
-    out << std::setprecision(n) << a_value;
-    return out.str();
-}
-
 bool node_id_compare(const Node* n1, const Node* n2) {
     return n1->_id < n2->_id;
 }

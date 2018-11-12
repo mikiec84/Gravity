@@ -20,10 +20,10 @@ public:
     Net* chordal;
     Partition* P_;
     int Num_parts; //  spatial decomposition
-    int Num_time; // time decomposition
+    unsigned int Num_time; // time decomposition
 
     // Schedule Parameters
-    param<real> rate_ramp;
+    param<double> rate_ramp;
     param<double> rate_switch;
     param<int> min_up;
     param<int> min_down;
@@ -89,7 +89,7 @@ public:
     
     //Constructors
     Global();
-    Global(PowerNet*, int parts, int T);
+    Global(PowerNet*, int parts, unsigned int T);
     ~Global();
     
     // modifiers.

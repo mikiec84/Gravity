@@ -27,7 +27,7 @@ Global::~Global() {
     delete grid;
 };
 
-Global::Global(PowerNet* net, int parts, int T) {
+Global::Global(PowerNet* net, int parts, unsigned int T) {
     grid = net;
     //chordal = grid->get_chordal_extension();
     grid->get_tree_decomp_bags();
@@ -148,7 +148,7 @@ Global::Global(PowerNet* net, int parts, int T) {
     mu.set_name("mu");
     mu_up.set_name("mu_up");
     mu_down.set_name("mu_down");
-
+  
     lambda_up.in(grid->gens, T);
     lambda_down.in(grid->gens, T);
     zeta_up.in(grid->gens, T);
@@ -193,23 +193,25 @@ double Global::solve_sdpcut_opf_(){
     
     for (int t= 0; t < Num_time; t++) {
         add_KCL_Sub_time(ACOPF, t);
+      indices ind = indices(to_string(t));
         Constraint Thermal_Limit_from("Thermal_Limit_from" + to_string(t));
         Thermal_Limit_from = power(Pf_from[t], 2) + power(Qf_from[t], 2);
         Thermal_Limit_from <= power(grid->S_max,2);
-        ACOPF.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
-        
+      ACOPF.add_constraint(Thermal_Limit_from.in(grid->arcs,ind));
+      //ACOPF.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
+
         Constraint Thermal_Limit_to("Thermal_Limit_to" + to_string(t));
         Thermal_Limit_to = power(Pf_to[t], 2) + power(Qf_to[t], 2);
         Thermal_Limit_to <= power(grid->S_max, 2);
-        ACOPF.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
+        ACOPF.add_constraint(Thermal_Limit_to.in(grid->arcs, ind));
         
         Constraint PAD_UB("PAD_UB_"+to_string(t));
         PAD_UB = Im_Xij[t]- grid->tan_th_max*R_Xij[t];
-        ACOPF.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
+        ACOPF.add_constraint(PAD_UB.in(bus_pairs, ind) <= 0);
         
         Constraint PAD_LB("PAD_LB_"+to_string(t));
         PAD_LB = Im_Xij[t]- grid->tan_th_min*R_Xij[t];
-        ACOPF.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
+        ACOPF.add_constraint(PAD_LB.in(bus_pairs, ind) >= 0);
     }
     
     /* Solver selection */
@@ -251,24 +253,25 @@ double Global::solve_sdpcut_opf_outer(){
     }
     
     for (int t= 0; t < Num_time; t++) {
+      indices ind = indices(to_string(t));
         add_KCL_Sub_time(ACOPF, t);
         Constraint Thermal_Limit_from("Thermal_Limit_from" + to_string(t));
         Thermal_Limit_from = power(Pf_from[t], 2) + power(Qf_from[t], 2);
         Thermal_Limit_from <= power(grid->S_max,2);
-        ACOPF.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
+        ACOPF.add_constraint(Thermal_Limit_from.in(grid->arcs, ind));
         
         Constraint Thermal_Limit_to("Thermal_Limit_to" + to_string(t));
         Thermal_Limit_to = power(Pf_to[t], 2) + power(Qf_to[t], 2);
         Thermal_Limit_to <= power(grid->S_max, 2);
-        ACOPF.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
+        ACOPF.add_constraint(Thermal_Limit_to.in(grid->arcs, ind));
         
         Constraint PAD_UB("PAD_UB_"+to_string(t));
         PAD_UB = Im_Xij[t]- grid->tan_th_max*R_Xij[t];
-        ACOPF.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
+        ACOPF.add_constraint(PAD_UB.in(bus_pairs, ind) <= 0);
         
         Constraint PAD_LB("PAD_LB_"+to_string(t));
         PAD_LB = Im_Xij[t]- grid->tan_th_min*R_Xij[t];
-        ACOPF.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
+        ACOPF.add_constraint(PAD_LB.in(bus_pairs, ind) >= 0);
     }
     
     /* Solver selection */
@@ -547,7 +550,8 @@ double Global::getdual_relax_spatial() {
         ACUC.add_var(Qg[c].in(P_->bag_gens[c], Num_time));
         ACUC.add_var(Start_up[c].in(P_->bag_gens[c], Num_time));
         ACUC.add_var(Shut_down[c].in(P_->bag_gens[c], Num_time));
-        ACUC.add_var(On_off[c].in(P_->bag_gens[c], -1,  Num_time));
+      ACUC.add_var(On_off[c].in(P_->bag_gens[c], Num_time));
+      ///ACUC.add_var(On_off[c].in(P_->bag_gens[c], -1,  Num_time));
         ACUC.add_var(Xii[c].in(P_->bag_bus_union_out[c], Num_time));
         Xii[c].initialize_all(1.001);
         ACUC.add_var(R_Xij[c].in(P_->bag_bus_pairs_union[c], Num_time));
@@ -598,11 +602,12 @@ double Global::getdual_relax_spatial() {
         }
     }
     ACUC.set_objective(min(obj));
+  indices idx = indices(1, Num_time);
     for (int c = 0; c < Num_parts; c++) {
         if (P_->bag_bus_pairs_union_directed[c].size() > 0) {
             Constraint SOC("SOC_" + to_string(c));
             SOC =  power(R_Xij[c], 2)+ power(Im_Xij[c], 2) - Xii[c].from()*Xii[c].to() ;
-            ACUC.add_constraint(SOC.in(P_->bag_bus_pairs_union_directed[c], Num_time) <= 0);
+            ACUC.add_constraint(SOC.in(P_->bag_bus_pairs_union_directed[c], idx) <= 0);
         }
     }
     /* perspective formulation of Pg^2 */
@@ -618,46 +623,46 @@ double Global::getdual_relax_spatial() {
         Constraint KCL_P("KCL_P"+ to_string(c));
         Constraint KCL_Q("KCL_Q"+ to_string(c));
         KCL_P = sum(Pf_from[c].out_arcs()) + sum(Pf_to[c].in_arcs()) -sum(Pg[c].in_gens())+ grid->gs*Xii[c] + grid->pl;
-        ACUC.add_constraint(KCL_P.in(P_->bag_bus[c], Num_time) == 0);
+        ACUC.add_constraint(KCL_P.in(P_->bag_bus[c], idx) == 0);
         KCL_Q  = sum(Qf_from[c].out_arcs()) + sum(Qf_to[c].in_arcs())+ grid->ql -sum(Qg[c].in_gens())-grid->bs*Xii[c];
-        ACUC.add_constraint(KCL_Q.in(P_->bag_bus[c], Num_time) == 0);
+        ACUC.add_constraint(KCL_Q.in(P_->bag_bus[c], idx) == 0);
 
         Constraint Flow_P_From("Flow_P_From_" + to_string(c));
         Flow_P_From = Pf_from[c]- (grid->g_ff*Xii[c].from()+ grid->g_ft*R_Xij[c].in_pairs() + grid->b_ft*Im_Xij[c].in_pairs());
-        ACUC.add_constraint(Flow_P_From.in(P_->bag_arcs_union_out[c], Num_time) == 0);
+        ACUC.add_constraint(Flow_P_From.in(P_->bag_arcs_union_out[c], idx) == 0);
 
         Constraint Flow_P_Num_timeo("Flow_P_Num_timeo" + to_string(c));
         Flow_P_Num_timeo = Pf_to[c] - (grid->g_tt*Xii[c].to() + grid->g_tf*R_Xij[c].in_pairs() - grid->b_tf*Im_Xij[c].in_pairs());
-        ACUC.add_constraint(Flow_P_Num_timeo.in(P_->bag_arcs_union_in[c], Num_time) == 0);
+        ACUC.add_constraint(Flow_P_Num_timeo.in(P_->bag_arcs_union_in[c], idx) == 0);
 
         Constraint Flow_Q_From("Flow_Q_From" + to_string(c));
         Flow_Q_From = Qf_from[c] - (grid->g_ft*Im_Xij[c].in_pairs() - grid->b_ff*Xii[c].from() - grid->b_ft*R_Xij[c].in_pairs());
-        ACUC.add_constraint(Flow_Q_From.in(P_->bag_arcs_union_out[c], Num_time) == 0);
+        ACUC.add_constraint(Flow_Q_From.in(P_->bag_arcs_union_out[c], idx) == 0);
 
         Constraint Flow_Q_Num_timeo("Flow_Q_Num_timeo" + to_string(c));
         Flow_Q_Num_timeo = Qf_to[c] + (grid->b_tt*Xii[c].to() + grid->b_tf*R_Xij[c].in_pairs() + grid->g_tf*Im_Xij[c].in_pairs());
-        ACUC.add_constraint(Flow_Q_Num_timeo.in(P_->bag_arcs_union_in[c], Num_time) == 0);
+        ACUC.add_constraint(Flow_Q_Num_timeo.in(P_->bag_arcs_union_in[c],idx) == 0);
 
         Constraint Num_timehermal_Limit_from("Num_timehermal_Limit_from" + to_string(c));
         Num_timehermal_Limit_from = power(Pf_from[c], 2) + power(Qf_from[c], 2);
         Num_timehermal_Limit_from <= power(grid->S_max,2);
-        ACUC.add_constraint(Num_timehermal_Limit_from.in(P_->bag_arcs_union_out[c], Num_time));
+        ACUC.add_constraint(Num_timehermal_Limit_from.in(P_->bag_arcs_union_out[c],idx));
 
         Constraint Num_timehermal_Limit_to("Num_timehermal_Limit_to" + to_string(c));
         Num_timehermal_Limit_to = power(Pf_to[c], 2) + power(Qf_to[c], 2);
         Num_timehermal_Limit_to <= power(grid->S_max,2);
-        ACUC.add_constraint(Num_timehermal_Limit_to.in(P_->bag_arcs_union_in[c], Num_time));
+        ACUC.add_constraint(Num_timehermal_Limit_to.in(P_->bag_arcs_union_in[c],idx));
     }
     ///* Phase Angle Bounds constraints */
     for (int c = 0; c < Num_parts; c++) {
         if (P_->bag_bus_pairs_union_directed[c].size() > 0) {
             Constraint PAD_UB("PAD_UB_"+to_string(c));
             PAD_UB = Im_Xij[c]- grid->tan_th_max*R_Xij[c];
-            ACUC.add_constraint(PAD_UB.in(P_->bag_bus_pairs_union_directed[c], Num_time) <= 0);
+            ACUC.add_constraint(PAD_UB.in(P_->bag_bus_pairs_union_directed[c], idx) <= 0);
 
             Constraint PAD_LB("PAD_LB_"+to_string(c));
             PAD_LB = Im_Xij[c]- grid->tan_th_min*R_Xij[c];
-            ACUC.add_constraint(PAD_LB.in(P_->bag_bus_pairs_union_directed[c], Num_time) >= 0);
+            ACUC.add_constraint(PAD_LB.in(P_->bag_bus_pairs_union_directed[c], idx) >= 0);
         }
     }
     // COMMINum_timeMENNum_time CONSNum_timeRAINNum_timeS
@@ -719,13 +724,13 @@ double Global::getdual_relax_spatial() {
             // 5A
             Production_P_UB = Pg[c] - grid->pg_max*On_off[c];
             Production_P_LB = Pg[c] - grid->pg_min*On_off[c];
-            ACUC.add_constraint(Production_P_UB.in(P_->bag_gens[c], Num_time) <=0);
-            ACUC.add_constraint(Production_P_LB.in(P_->bag_gens[c], Num_time) >= 0);
+            ACUC.add_constraint(Production_P_UB.in(P_->bag_gens[c], idx) <=0);
+            ACUC.add_constraint(Production_P_LB.in(P_->bag_gens[c], idx) >= 0);
 
             Production_Q_UB = Qg[c] - grid->qg_max*On_off[c];
             Production_Q_LB = Qg[c] - grid->qg_min*On_off[c];
-            ACUC.add_constraint(Production_Q_UB.in(P_->bag_gens[c], Num_time) <= 0);
-            ACUC.add_constraint(Production_Q_LB.in(P_->bag_gens[c], Num_time) >= 0);
+            ACUC.add_constraint(Production_Q_UB.in(P_->bag_gens[c], idx) <= 0);
+            ACUC.add_constraint(Production_Q_LB.in(P_->bag_gens[c], idx) >= 0);
         }
     }
     // 5C
@@ -772,15 +777,15 @@ double Global::getdual_relax_spatial() {
     for (const auto& a: P_->G_part.arcs) {
         Constraint Link_R("link_R_"+a->_name);
         Link_R = R_Xij[a->_src->_id].in_pairs() - R_Xij[a->_dest->_id].in_pairs();
-        ACUC.add_constraint(Link_R.in(a->_intersection_clique, Num_time) ==0);
+        ACUC.add_constraint(Link_R.in(a->_intersection_clique,idx) ==0);
 
         Constraint Link_Im("link_Im_"+a->_name);
         Link_Im = Im_Xij[a->_src->_id].in_pairs() - Im_Xij[a->_dest->_id].in_pairs();
-        ACUC.add_constraint(Link_Im.in(a->_intersection_clique, Num_time)==0);
+        ACUC.add_constraint(Link_Im.in(a->_intersection_clique, idx)==0);
 
         Constraint Link_Xii("link_Xii_" + a->_name);
         Link_Xii = Xii[a->_src->_id].to() - Xii[a->_dest->_id].to();
-        ACUC.add_constraint(Link_Xii.in(a->_intersection_clique, Num_time)==0);
+        ACUC.add_constraint(Link_Xii.in(a->_intersection_clique,idx)==0);
     }
     /* Solver selection */
     //solver cpx_acuc(ACUC, cplex);
@@ -791,21 +796,23 @@ double Global::getdual_relax_spatial() {
     cpx_acuc.run(output, relax, tol);
     cout << "the continuous relaxation bound is: " << ACUC._obj_val << endl;
     for (const auto& a: P_->G_part.arcs) {
-        auto consR = ACUC.get_constraint("link_R_"+a->_name);
-        auto consIm = ACUC.get_constraint("link_Im_"+a->_name);
-        auto cons = ACUC.get_constraint("link_Xii_"+a->_name);
+        shared_ptr<Constraint> consR = ACUC.get_constraint("link_R_"+a->_name);
+        shared_ptr<Constraint> consIm = ACUC.get_constraint("link_Im_"+a->_name);
+        shared_ptr<Constraint> cons = ACUC.get_constraint("link_Xii_"+a->_name);
+      unsigned id = 0;
         for (unsigned t = 0; t < Num_time; t++) {
             for (auto& line: a->_intersection_clique) {
                 string name =line->_name+","+to_string(t);
-                auto cR = (*consR)(name);
-                auto cIm = (*consIm)(name);
-                auto  c= (*cons)(name);
-                R_lambda_(name) = -cR._dual.at(0);
-                Im_lambda_(name)= -cIm._dual.at(0);
-                lambda_(name) = -c._dual.at(0);
-                DebugOff("R_lambda_" << -cR._dual.at(0) << endl);
-                DebugOff("Im_lambda_" << -cIm._dual.at(0)<< endl);
-                DebugOff("lambda_" << -c._dual.at(0)<< endl);
+//                auto cR = (*consR)(name);
+//                auto cIm = (*consIm)(name);
+//                auto  c= (*cons)(name);
+                R_lambda_(name) = -consR->_dual.at(id);
+                Im_lambda_(name)= -consIm->_dual.at(id);
+                lambda_(name) = -cons->_dual.at(id);
+              id++;
+//                DebugOff("R_lambda_" << -cR._dual.at(0) << endl);
+//                DebugOff("Im_lambda_" << -cIm._dual.at(0)<< endl);
+//                DebugOff("lambda_" << -c._dual.at(0)<< endl);
             }
         }
     }
@@ -839,6 +846,7 @@ void Global::add_var_Sub_time(Model& Sub, int t) {
 
 void Global::add_obj_Sub_time(gravity::Model& Sub, int t) {
     func_ obj;
+  indices ind = indices(0, Num_time);
     if (t == 0) {
         for (auto g:grid->gens) {
             if (g->_active) {
@@ -920,7 +928,7 @@ void Global::add_obj_Sub_time(gravity::Model& Sub, int t) {
                 if (include_min_updown_) {
                     if (min_up.getvalue() >1) {
                         int start = std::max(min_up.getvalue()-1, t);
-                        int end = std::min(min_up.getvalue()+t, Num_time); // both increase 1.
+                        int end = std::min(min_up.getvalue()+t, (int)Num_time); // both increase 1.
                         for (int l = start; l < end; l++) {
                             string name2 = g->_name+","+to_string(l);
                             obj +=mu_up(name2)*Start_up[t](name);
@@ -928,7 +936,7 @@ void Global::add_obj_Sub_time(gravity::Model& Sub, int t) {
                     }
                     if(min_down.getvalue()>1) {
                         int start = std::max(min_down.getvalue()-1, t);
-                        int end = std::min(min_down.getvalue()+t, Num_time);
+                        int end = std::min(min_down.getvalue()+t, (int)Num_time);
                         for (int l = start; l < end; l++) {
                             string name2 = g->_name+","+to_string(l);
                             obj +=mu_down(name2)*Shut_down[t](name);
@@ -955,35 +963,39 @@ void Global::add_obj_Sub_upper_time(gravity::Model& Sub, int t) {
 }
 
 void Global::add_perspective_OnOff_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     /* Construct the objective function*/
     Constraint Perspective_OnOff_Pg2("Perspective_OnOff_Pg2_");
     Perspective_OnOff_Pg2 = power(Pg[t], 2) - Pg2[t]*On_off[t];
-    Sub.add(Perspective_OnOff_Pg2.in_at(grid->gens, t) <= 0);
+    Sub.add(Perspective_OnOff_Pg2.in(grid->gens, ind) <= 0);
 }
 void Global::add_SOCP_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     const auto bus_pairs = grid->get_bus_pairs();
     //Constraint SOC("SOC_" + to_string(t));
     SOC_[t] = Constraint("SOC_" + to_string(t));
     SOC_[t] =  power(R_Xij[t], 2) + power(Im_Xij[t], 2) - Xii[t].from()*Xii[t].to() ;
-    SOC_outer_[t] = Sub.add_constraint(SOC_[t].in_at(bus_pairs, t) <= 0);
+    SOC_outer_[t] = Sub.add_constraint(SOC_[t].in(bus_pairs, ind) <= 0);
     //Sub.add_constraint(SOC_[t].in_at(bus_pairs, t) <= 0);
 }
 
 void Global::add_SOCP_chord_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     const auto bus_pairs_chord = grid->get_bus_pairs_chord();
     //Constraint SOC("SOC_" + to_string(t));
     SOC_[t] = Constraint("SOC_" + to_string(t));
     SOC_[t] =  power(R_Xij[t], 2) + power(Im_Xij[t], 2) - Xii[t].from()*Xii[t].to() ;
-    SOC_outer_[t] = Sub.add_constraint(SOC_[t].in_at(bus_pairs_chord, t) <= 0);
+    SOC_outer_[t] = Sub.add_constraint(SOC_[t].in(bus_pairs_chord, ind) <= 0);
     //SOC_[t].in_at(bus_pairs_chord, t).print_expanded();
 }
 
 void Global::add_SOCP_Outer_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     //for (auto& pair: bus_pairs){
     Constraint SOC_outer_linear("SOC_outer_linear_"+to_string(t));
     SOC_outer_linear = SOC_outer_[t]->get_outer_app();
     SOC_outer_linear.print_expanded();
-    Sub.add_constraint(SOC_outer_linear.in_at(grid->get_bus_pairs_chord(),t) <= 0);
+    Sub.add_constraint(SOC_outer_linear.in(grid->get_bus_pairs_chord(),ind) <= 0);
     //Sub.add_constraint(SOC_outer_linear <= 0);
     //}
 }
@@ -998,57 +1010,59 @@ void Global::add_Sdpcut_Outer_Sub_time(Model& Sub, int t) {
 void Global::add_Sdpcut_Second_order_Sub_time(Model& Model, int t){
     Constraint Sdpcut_outer_QP("Sdpcut_outer_QP_"+to_string(t));
     // sdp cut  hessan of 3d sdp.. 
-    Sdpcut_outer_QP = Sdpcut_outer_[t]->get_second_outer_app();
+  Sdpcut_outer_QP = Sdpcut_outer_[t]->get_outer_app();
+  //Sdpcut_outer_QP = Sdpcut_outer_[t]->get_second_outer_app();
     Sdpcut_outer_QP.print_expanded();
     Model.add_constraint(Sdpcut_outer_QP >= 0);
 }
 
-
 void Global::add_KCL_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     Constraint KCL_P("KCL_P_"+ to_string(t));
     Constraint KCL_Q("KCL_Q_"+ to_string(t));
     KCL_P =  sum(Pf_from[t].out_arcs()) + sum(Pf_to[t].in_arcs()) +grid->pl- sum(Pg[t].in_gens())+ grid->gs*Xii[t];
-    Sub.add_constraint(KCL_P.in_at(grid->nodes,t) == 0);
+    Sub.add_constraint(KCL_P.in(grid->nodes,ind) == 0);
 
     KCL_Q  = sum(Qf_from[t].out_arcs()) + sum(Qf_to[t].in_arcs())+ grid->ql -sum(Qg[t].in_gens())-grid->bs*Xii[t];
-    Sub.add_constraint(KCL_Q.in_at(grid->nodes, t) == 0);
+    Sub.add_constraint(KCL_Q.in(grid->nodes, ind) == 0);
 
     Constraint Flow_P_From("Flow_P_From" + to_string(t));
     Flow_P_From = Pf_from[t]- (grid->g_ff*Xii[t].from()+ grid->g_ft*R_Xij[t].in_pairs() + grid->b_ft*Im_Xij[t].in_pairs());
-    Sub.add_constraint(Flow_P_From.in_at(grid->arcs, t) == 0);
+    Sub.add_constraint(Flow_P_From.in(grid->arcs, ind) == 0);
 
     Constraint Flow_P_To("Flow_P_To" + to_string(t));
     Flow_P_To = Pf_to[t] - (grid->g_tt*Xii[t].to()+ grid->g_tf*R_Xij[t].in_pairs()- grid->b_tf*Im_Xij[t].in_pairs());
-    Sub.add_constraint(Flow_P_To.in_at(grid->arcs, t) == 0);
+    Sub.add_constraint(Flow_P_To.in(grid->arcs, ind) == 0);
 
     Constraint Flow_Q_From("Flow_Q_From" + to_string(t));
     Flow_Q_From = Qf_from[t]-(grid->g_ft*Im_Xij[t].in_pairs ()- grid->b_ff*Xii[t].from()- grid->b_ft*R_Xij[t].in_pairs());
-    Sub.add_constraint(Flow_Q_From.in_at(grid->arcs, t) == 0);
+    Sub.add_constraint(Flow_Q_From.in(grid->arcs, ind) == 0);
 
     Constraint Flow_Q_To("Flow_Q_To" + to_string(t));
     Flow_Q_To = Qf_to[t] + (grid->b_tt*Xii[t].to()+ grid->b_tf*R_Xij[t].in_pairs() + grid->g_tf*Im_Xij[t].in_pairs());
-    Sub.add_constraint(Flow_Q_To.in_at(grid->arcs, t) == 0);
+    Sub.add_constraint(Flow_Q_To.in(grid->arcs, ind) == 0);
 
 }
 void Global::add_thermal_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     const auto bus_pairs = grid->get_bus_pairs();
     Constraint Thermal_Limit_from("Thermal_Limit_from" + to_string(t));
     Thermal_Limit_from = power(Pf_from[t], 2) + power(Qf_from[t], 2);
     Thermal_Limit_from <= power(grid->S_max,2);
-    Sub.add_constraint(Thermal_Limit_from.in_at(grid->arcs, t));
+    Sub.add_constraint(Thermal_Limit_from.in(grid->arcs, ind));
 
     Constraint Thermal_Limit_to("Thermal_Limit_to" + to_string(t));
     Thermal_Limit_to = power(Pf_to[t], 2) + power(Qf_to[t], 2);
     Thermal_Limit_to <= power(grid->S_max, 2);
-    Sub.add_constraint(Thermal_Limit_to.in_at(grid->arcs, t));
+    Sub.add_constraint(Thermal_Limit_to.in(grid->arcs, ind));
 
     Constraint PAD_UB("PAD_UB_"+to_string(t));
     PAD_UB = Im_Xij[t]- grid->tan_th_max*R_Xij[t];
-    Sub.add_constraint(PAD_UB.in_at(bus_pairs, t) <= 0);
+    Sub.add_constraint(PAD_UB.in(bus_pairs, ind) <= 0);
 
     Constraint PAD_LB("PAD_LB_"+to_string(t));
     PAD_LB = Im_Xij[t]- grid->tan_th_min*R_Xij[t];
-    Sub.add_constraint(PAD_LB.in_at(bus_pairs, t) >= 0);
+    Sub.add_constraint(PAD_LB.in(bus_pairs, ind) >= 0);
 
     Constraint Production_P_LB("Production_P_LB_"+ to_string(t));
     Constraint Production_P_UB("Production_P_UB_"+ to_string(t));
@@ -1056,25 +1070,26 @@ void Global::add_thermal_Sub_time(Model& Sub, int t) {
     Constraint Production_Q_UB("Production_Q_UB_"+ to_string(t));
     Production_P_UB = Pg[t]- grid->pg_max*On_off[t];
     Production_P_LB = Pg[t]- grid->pg_min*On_off[t];
-    Sub.add_constraint(Production_P_UB.in_at(grid->gens, t)<=0);
-    Sub.add_constraint(Production_P_LB.in_at(grid->gens, t)>= 0);
+    Sub.add_constraint(Production_P_UB.in(grid->gens, ind)<=0);
+    Sub.add_constraint(Production_P_LB.in(grid->gens, ind)>= 0);
 
     Production_Q_UB = Qg[t] - grid->qg_max*On_off[t];
     Production_Q_LB = Qg[t] - grid->qg_min*On_off[t];
-    Sub.add_constraint(Production_Q_UB.in_at(grid->gens, t) <= 0);
-    Sub.add_constraint(Production_Q_LB.in_at(grid->gens, t) >= 0);
+    Sub.add_constraint(Production_Q_UB.in(grid->gens, ind) <= 0);
+    Sub.add_constraint(Production_Q_LB.in(grid->gens, ind) >= 0);
 }
 
 void Global::add_MC_upper_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
     Constraint MC_upper1("MC_upper1_constraint_"+ to_string(t));
     param<bool> On_off_val("On_off_val");
     //On_off_val = On_off[t+1];
     MC_upper1  = Start_up[t] - On_off[t];
-    Sub.add_constraint(MC_upper1.in_at(grid->gens, t)<=0);
+    Sub.add_constraint(MC_upper1.in(grid->gens, ind)<=0);
 
     Constraint MC_upper2("MC_upper2_constraint_"+ to_string(t));
     MC_upper2  = Shut_down[t] -1 + On_off[t];
-    Sub.add_constraint(MC_upper1.in_at(grid->gens, t)<=0);
+    Sub.add_constraint(MC_upper1.in(grid->gens, ind)<=0);
 }
 
 void  Global::add_MC_intertemporal_Sub_upper_time(Model& ACUC, int t) {
@@ -1375,12 +1390,14 @@ double Global::Upper_bound_sequence_(bool included_min_up_down) {
 }
 
 double Global::Subproblem_spatial_(int l) {
+  indices ind = indices(1, Num_time);
     assert(Pg.size() == Num_parts);
     Model Subr("Subr");
     Subr.add_var(Pg[l].in(P_->bag_gens[l], Num_time));
     Subr.add_var(Pg2[l].in(P_->bag_gens[l], Num_time));
     Subr.add_var(Qg[l].in(P_->bag_gens[l], Num_time));
-    Subr.add_var(On_off[l].in(P_->bag_gens[l], -1, Num_time));
+  Subr.add_var(On_off[l].in(P_->bag_gens[l],Num_time));
+  //Subr.add_var(On_off[l].in(P_->bag_gens[l], -1, Num_time));
     Subr.add_var(Start_up[l].in(P_->bag_gens[l], Num_time));
     Subr.add_var(Shut_down[l].in(P_->bag_gens[l], Num_time));
     Subr.add_var(Xii[l].in(P_->bag_bus_union_out[l], Num_time));
@@ -1435,7 +1452,7 @@ double Global::Subproblem_spatial_(int l) {
     if (P_->bag_gens[l].size() >0) {
         Constraint Perspective_OnOff_Pg2("Perspective_OnOff_Pg2_");
         Perspective_OnOff_Pg2 = power(Pg[l], 2) - Pg2[l]*On_off[l];
-        Subr.add(Perspective_OnOff_Pg2.in(P_->bag_gens[l], Num_time) <= 0);
+        Subr.add(Perspective_OnOff_Pg2.in(P_->bag_gens[l], ind) <= 0);
     }
 
     if (P_->bag_bus_pairs_union_directed[l].size() > 0) {
@@ -1443,49 +1460,49 @@ double Global::Subproblem_spatial_(int l) {
         //SOC =  power(R_Xij[l], 2)+ power(Im_Xij[l], 2)-Xii[l].from()*Xii[l].to() ;
         SOC_[l] =  power(R_Xij[l], 2)+ power(Im_Xij[l], 2)-Xii[l].from()*Xii[l].to() ;
         //Subr.add_constraint(SOC.in(P_->bag_bus_pairs_union_directed[l], Num_time) <= 0);
-        Subr.add_constraint(SOC_[l].in(P_->bag_bus_pairs_union_directed[l], Num_time) <= 0);
+        Subr.add_constraint(SOC_[l].in(P_->bag_bus_pairs_union_directed[l], ind) <= 0);
     }
     Constraint KCL_P("KCL_P");
     Constraint KCL_Q("KCL_Q");
     KCL_P = sum(Pf_from.out_arcs()) + sum(Pf_to.in_arcs()) + grid->pl-sum(Pg[l].in_gens()) + grid->gs*Xii[l];
-    Subr.add_constraint(KCL_P.in(P_->bag_bus[l], Num_time) == 0);
+    Subr.add_constraint(KCL_P.in(P_->bag_bus[l], ind) == 0);
     KCL_Q = sum(Qf_from.out_arcs()) + sum(Qf_to.in_arcs()) + grid->ql - sum(Qg[l].in_gens()) - grid->bs*Xii[l];
-    Subr.add_constraint(KCL_Q.in(P_->bag_bus[l], Num_time) == 0);
+    Subr.add_constraint(KCL_Q.in(P_->bag_bus[l], ind) == 0);
 
     Constraint Flow_P_From("Flow_P_From");
     Flow_P_From = Pf_from -(grid->g_ff*Xii[l].from() + grid->g_ft*R_Xij[l].in_pairs() + grid->b_ft*Im_Xij[l].in_pairs());
-    Subr.add_constraint(Flow_P_From.in(P_->bag_arcs_union_out[l], Num_time) == 0);
+    Subr.add_constraint(Flow_P_From.in(P_->bag_arcs_union_out[l], ind) == 0);
 
-    Constraint Flow_P_Num_timeo("Flow_P_Num_time");
-    Flow_P_Num_timeo = Pf_to - (grid->g_tt*Xii[l].to() + grid->g_tf*R_Xij[l].in_pairs() - grid->b_tf*Im_Xij[l].in_pairs());
-    Subr.add_constraint(Flow_P_Num_timeo.in(P_->bag_arcs_union_in[l], Num_time) == 0);
+    Constraint Flow_P_indo("Flow_P_ind");
+    Flow_P_indo = Pf_to - (grid->g_tt*Xii[l].to() + grid->g_tf*R_Xij[l].in_pairs() - grid->b_tf*Im_Xij[l].in_pairs());
+    Subr.add_constraint(Flow_P_indo.in(P_->bag_arcs_union_in[l], ind) == 0);
 
     Constraint Flow_Q_From("Flow_Q_From");
     Flow_Q_From = Qf_from - (grid->g_ft*Im_Xij[l].in_pairs() - grid->b_ff*Xii[l].from() - grid->b_ft*R_Xij[l].in_pairs());
-    Subr.add_constraint(Flow_Q_From.in(P_->bag_arcs_union_out[l], Num_time) == 0);
+    Subr.add_constraint(Flow_Q_From.in(P_->bag_arcs_union_out[l], ind) == 0);
 
-    Constraint Flow_Q_Num_timeo("Flow_Q_Num_time");
-    Flow_Q_Num_timeo = Qf_to + (grid->b_tt*Xii[l].to() + grid->b_tf*R_Xij[l].in_pairs() + grid->g_tf*Im_Xij[l].in_pairs());
-    Subr.add_constraint(Flow_Q_Num_timeo.in(P_->bag_arcs_union_in[l], Num_time) == 0);
+    Constraint Flow_Q_indo("Flow_Q_ind");
+    Flow_Q_indo = Qf_to + (grid->b_tt*Xii[l].to() + grid->b_tf*R_Xij[l].in_pairs() + grid->g_tf*Im_Xij[l].in_pairs());
+    Subr.add_constraint(Flow_Q_indo.in(P_->bag_arcs_union_in[l], ind) == 0);
 
-    Constraint Num_timehermal_Limit_from("Num_timehermal_Limit_from");
-    Num_timehermal_Limit_from = power(Pf_from, 2) + power(Qf_from, 2);
-    Num_timehermal_Limit_from <= power(grid->S_max, 2);
-    Subr.add_constraint(Num_timehermal_Limit_from.in(P_->bag_arcs_union_out[l], Num_time));
+    Constraint indhermal_Limit_from("indhermal_Limit_from");
+    indhermal_Limit_from = power(Pf_from, 2) + power(Qf_from, 2);
+    indhermal_Limit_from <= power(grid->S_max, 2);
+    Subr.add_constraint(indhermal_Limit_from.in(P_->bag_arcs_union_out[l], ind));
 
-    Constraint Num_timehermal_Limit_to("Num_timehermal_Limit_to");
-    Num_timehermal_Limit_to = power(Pf_to, 2) + power(Qf_to, 2);
-    Num_timehermal_Limit_to <= power(grid->S_max, 2);
-    Subr.add_constraint(Num_timehermal_Limit_to.in(P_->bag_arcs_union_in[l], Num_time));
+    Constraint indhermal_Limit_to("indhermal_Limit_to");
+    indhermal_Limit_to = power(Pf_to, 2) + power(Qf_to, 2);
+    indhermal_Limit_to <= power(grid->S_max, 2);
+    Subr.add_constraint(indhermal_Limit_to.in(P_->bag_arcs_union_in[l], ind));
     /* Phase Angle Bounds constraints */
     Constraint PAD_UB("PAD_UB_"+to_string(l));
     PAD_UB = Im_Xij[l]- grid->tan_th_max*R_Xij[l];
-    Subr.add_constraint(PAD_UB.in(P_->bag_bus_pairs_union_directed[l], Num_time) <= 0);
+    Subr.add_constraint(PAD_UB.in(P_->bag_bus_pairs_union_directed[l], ind) <= 0);
 
     Constraint PAD_LB("PAD_LB_"+to_string(l));
     PAD_LB = Im_Xij[l] - grid->tan_th_min*R_Xij[l];
-    Subr.add_constraint(PAD_LB.in(P_->bag_bus_pairs_union_directed[l], Num_time) >= 0);
-    //COMMINum_timeMENNum_time CONSNum_timeRAINNum_timeS
+    Subr.add_constraint(PAD_LB.in(P_->bag_bus_pairs_union_directed[l], ind) >= 0);
+    //COMMIindMENind CONSindRAINindS
     // Inter-temporal constraints 3a, 3d
     if (P_->bag_gens[l].size() > 0) {
         for (int t = 0; t < Num_time; t++) {
@@ -1537,13 +1554,13 @@ double Global::Subproblem_spatial_(int l) {
         // 5A
         Production_P_UB = Pg[l] - grid->pg_max*On_off[l];
         Production_P_LB = Pg[l] - grid->pg_min*On_off[l];
-        Subr.add_constraint(Production_P_UB.in(P_->bag_gens[l], Num_time) <=0);
-        Subr.add_constraint(Production_P_LB.in(P_->bag_gens[l], Num_time) >= 0);
+        Subr.add_constraint(Production_P_UB.in(P_->bag_gens[l], ind) <=0);
+        Subr.add_constraint(Production_P_LB.in(P_->bag_gens[l], ind) >= 0);
 
         Production_Q_UB = Qg[l] - grid->qg_max*On_off[l];
         Production_Q_LB = Qg[l] - grid->qg_min*On_off[l];
-        Subr.add_constraint(Production_Q_UB.in(P_->bag_gens[l], Num_time) <= 0);
-        Subr.add_constraint(Production_Q_LB.in(P_->bag_gens[l], Num_time) >= 0);
+        Subr.add_constraint(Production_Q_UB.in(P_->bag_gens[l], ind) <= 0);
+        Subr.add_constraint(Production_Q_LB.in(P_->bag_gens[l], ind) >= 0);
     }
     // 5C
     if (P_->bag_gens[l].size() > 0) {
@@ -1638,6 +1655,7 @@ vector<int> Global::check_rank1_constraint_(Model& Sub, int t) {
 void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
     // recursive decomposition to dimension 2 Lorenz cone.
     // we have L^3 rotated SOCP.
+  indices ind = indices(to_string(t));
     const auto bus_pairs = grid->get_bus_pairs();
     var<double> gamma("gamma");
     var<double> z("z");
@@ -1646,11 +1664,11 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
 
     Constraint Extend_SOCP("Extend_SOCP_1_");
     Extend_SOCP = gamma - 0.5*Xii[t].from() - 0.5*Xii[t].to();
-    model.add_constraint(Extend_SOCP.in_at(bus_pairs, t)==0);
+    model.add_constraint(Extend_SOCP.in(bus_pairs, ind)==0);
 
     Constraint Extend_SOCP2("Extend_SOCP_2_");
     Extend_SOCP2 = 0.5*Xii[t].from() - 0.5*Xii[t].to()- z;
-    model.add_constraint(Extend_SOCP2.in_at(bus_pairs, t)==0);
+    model.add_constraint(Extend_SOCP2.in(bus_pairs, ind)==0);
     // cone decomposition.
     // R_xij^2 + Im_xij^2 + z^2 <= gamma^2...
 
@@ -1684,13 +1702,13 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
             Extend3 = alpha[i-1]*sin(M_PI*pow(0.5, i)) - beta[i-1]*cos(M_PI*pow(0.5, i)) - beta[i];
         }
         //Extend3.print_expanded();
-        model.add_constraint(Extend1.in_at(bus_pairs, t) ==0);
-        model.add_constraint(Extend2.in_at(bus_pairs, t) <=0);
-        model.add_constraint(Extend3.in_at(bus_pairs, t) <=0);
+        model.add_constraint(Extend1.in(bus_pairs, ind) ==0);
+        model.add_constraint(Extend2.in(bus_pairs, ind) <=0);
+        model.add_constraint(Extend3.in(bus_pairs, ind) <=0);
     }
     Constraint Extend4("Extend4_"+to_string(t));
     Extend4 = y - alpha[k-1]*cos(M_PI*pow(0.5, k)) - beta[k-1]*sin(M_PI*pow(0.5, k));
-    model.add_constraint(Extend4.in_at(bus_pairs,t) ==0);
+    model.add_constraint(Extend4.in(bus_pairs, ind) ==0);
 
     vector<var<double>> alphay;
     vector<var<double>> betaz;
@@ -1716,13 +1734,13 @@ void  Global::add_BenNem_SOCP_time(Model& model, int t, int k) {
             Extend2 = betaz[i-1]*cos(M_PI*pow(0.5, i))- alphay[i-1]*sin(M_PI*pow(0.5, i))  - betaz[i];
             Extend3 = alphay[i-1]*sin(M_PI*pow(0.5, i)) - betaz[i-1]*cos(M_PI*pow(0.5, i)) - betaz[i];
         }
-        model.add_constraint(Extend1.in_at(bus_pairs, t) ==0);
-        model.add_constraint(Extend2.in_at(bus_pairs, t) <=0);
-        model.add_constraint(Extend3.in_at(bus_pairs, t) <=0);
+        model.add_constraint(Extend1.in(bus_pairs, ind) ==0);
+        model.add_constraint(Extend2.in(bus_pairs, ind) <=0);
+        model.add_constraint(Extend3.in(bus_pairs, ind) <=0);
     }
     Constraint Extend4yz("Extend4_yz"+to_string(t));
     Extend4yz = gamma - alphay[k-1]*cos(M_PI*pow(0.5, k)) - betaz[k-1]*sin(M_PI*pow(0.5, k));
-    model.add_constraint(Extend4yz.in_at(bus_pairs,t) ==0);
+    model.add_constraint(Extend4yz.in(bus_pairs, ind) ==0);
 }
 
 void  Global::add_SDP_S_(Model& model, vector<int> indices, int t) {

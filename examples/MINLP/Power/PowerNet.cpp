@@ -2674,7 +2674,7 @@ unique_ptr<Model> PowerNet::build_fixed_ACOPF_N_1(PowerModelType pmt, int output
     return ACOPF;
 }
 
-vector<param<>> PowerNet::signs()
+vector<param<>> PowerNet::signs(){
     vector<param<>> res;
     string key;
     size_t idx;
