@@ -914,28 +914,43 @@ double Global::getdual_relax_spatial() {
 }
 
 void Global::add_var_Sub_time(Model& Sub, int t) {
+  indices ind = indices(to_string(t));
   const auto bus_pairs = grid->get_bus_pairs();
   const auto bus_pairs_chord = grid->get_bus_pairs_chord();
   // Sub.add_var(Pg[t]);
-  Sub.add_var(Pg[t].in_at(grid->gens, t));
-  Sub.add_var(Pg2[t].in_at(grid->gens, t));
-  Sub.add_var(Qg[t].in_at(grid->gens, t));
-  Sub.add_var(On_off[t].in_at(grid->gens, t));
+  //Sub.add_var(Pg[t].in_at(grid->gens, t));
+  //Sub.add_var(Pg2[t].in_at(grid->gens, t));
+  //Sub.add_var(Qg[t].in_at(grid->gens, t));
+  //Sub.add_var(On_off[t].in_at(grid->gens, t));
+  Sub.add_var(Pg[t].in(grid->gens, ind));
+  Sub.add_var(Pg2[t].in(grid->gens, ind));
+  Sub.add_var(Qg[t].in(grid->gens, ind));
+  Sub.add_var(On_off[t].in(grid->gens, ind));
   // Sub.add_var(On_off[t]);
   // Sub.add_var(Start_up[t]);
-  Sub.add_var(Start_up[t].in_at(grid->gens, t));
+  //Sub.add_var(Start_up[t].in_at(grid->gens, t));
+  Sub.add_var(Start_up[t].in(grid->gens, ind));
   // Sub.add_var(Shut_down[t]);
-  Sub.add_var(Shut_down[t].in_at(grid->gens, t));
-  Sub.add_var(Xii[t].in_at(grid->nodes, t));
-  Sub.add_var(R_Xij[t].in_at(bus_pairs_chord, t));
-  Sub.add_var(Im_Xij[t].in_at(bus_pairs_chord, t));
+  //Sub.add_var(Shut_down[t].in_at(grid->gens, t));
+  //Sub.add_var(Xii[t].in_at(grid->nodes, t));
+  //Sub.add_var(R_Xij[t].in_at(bus_pairs_chord, t));
+  //Sub.add_var(Im_Xij[t].in_at(bus_pairs_chord, t));
+  Sub.add_var(Shut_down[t].in(grid->gens, ind));
+  Sub.add_var(Xii[t].in(grid->nodes, ind));
+  Sub.add_var(R_Xij[t].in(bus_pairs_chord, ind));
+  Sub.add_var(Im_Xij[t].in(bus_pairs_chord, ind));
   Xii[t].initialize_all(1.001);
   R_Xij[t].initialize_all(1.0);
   // power flow
-  Sub.add_var(Pf_from[t].in_at(grid->arcs, t));
-  Sub.add_var(Qf_from[t].in_at(grid->arcs, t));
-  Sub.add_var(Pf_to[t].in_at(grid->arcs, t));
-  Sub.add_var(Qf_to[t].in_at(grid->arcs, t));
+  //Sub.add_var(Pf_from[t].in_at(grid->arcs, t));
+  //Sub.add_var(Qf_from[t].in_at(grid->arcs, t));
+  //Sub.add_var(Pf_to[t].in_at(grid->arcs, t));
+  //Sub.add_var(Qf_to[t].in_at(grid->arcs, t));
+
+  Sub.add_var(Pf_from[t].in(grid->arcs, ind));
+  Sub.add_var(Qf_from[t].in(grid->arcs, ind));
+  Sub.add_var(Pf_to[t].in(grid->arcs, ind));
+  Sub.add_var(Qf_to[t].in(grid->arcs, ind));
 }
 
 void Global::add_obj_Sub_time(gravity::Model& Sub, int t) {

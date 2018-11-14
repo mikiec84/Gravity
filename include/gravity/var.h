@@ -384,12 +384,6 @@ public:
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
-        //        if(!this->_lb->is_number()){
-        //            *res._lb = this->_lb->in(vec);
-        //        }
-        //        if(!this->_ub->is_number()){
-        //            *res._ub = this->_ub->in(vec);
-        //        }
         return res;
     }
     
@@ -398,12 +392,6 @@ public:
         var<type> res(this->_name);
         res.param<type>::operator=(param<type>::min_time(vec, ids, time));
         res.param<type>::set_type(var_c);
-        //        if(!this->_lb->is_number()){
-        //            *res._lb = this->_lb->in(vec);
-        //        }
-        //        if(!this->_ub->is_number()){
-        //            *res._ub = this->_ub->in(vec);
-        //        }
         return res;
     }
     
@@ -437,13 +425,6 @@ public:
         res.param<type>::set_type(var_c);
         res._lb = this->_lb;
         res._ub = this->_ub;
-
-//        if(!this->_lb->is_number()){
-//            *res._lb = this->_lb->in(vec);
-//        }
-//        if(!this->_ub->is_number()){
-//            *res._ub = this->_ub->in(vec);
-//        }
         return res;
     }
     
