@@ -6,7 +6,7 @@
 //
 //
 
-#include "Global.hpp"
+#include "global.hpp"
 #include <algorithm>
 #include <queue>
 
