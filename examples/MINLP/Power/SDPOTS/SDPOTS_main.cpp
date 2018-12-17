@@ -17,6 +17,8 @@
 using namespace std;
 using namespace gravity;
 
+/* SDP OPF constraints */
+
 void add_PowerFlow(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij, var<Real>& Wii,
         var<Real>& Pf_from, var<Real>& Pf_to, var<Real>& Qf_from, var<Real>& Qf_to, var<Real>& Pg, var<Real>& Qg){
    /* Flow conservation */
@@ -126,6 +128,134 @@ void add_SDP3(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij,
    //        SDP3.print_expanded();
 }
 
+/* OTS constraints */
+
+void add_PowerFlow_onoff(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij, var<Real>& Wii, var<Real>& W_line_ij,
+                         var<Real>& W_line_ji, var<Real>& Pf_from, var<Real>& Pf_to, var<Real>& Qf_from, var<Real>& Qf_to, var<Real>& Pg, var<Real>& Qg){
+   /* Flow conservation */
+   Constraint KCL_P("KCL_P");
+   KCL_P  = sum(Pf_from.out_arcs()) + sum(Pf_to.in_arcs()) + grid.pl - sum(Pg.in_gens()) + grid.gs*Wii;
+   model.add(KCL_P.in(grid.nodes) == 0);
+
+   Constraint KCL_Q("KCL_Q");
+   KCL_Q  = sum(Qf_from.out_arcs()) + sum(Qf_to.in_arcs()) + grid.ql - sum(Qg.in_gens()) - grid.bs*Wii;
+   model.add(KCL_Q.in(grid.nodes) == 0);
+
+   /* AC Power Flow */
+   Constraint Flow_P_From("Flow_P_From");
+   Flow_P_From = Pf_from - (grid.g_ff*W_line_ij + grid.g_ft*R_Wij.in_pairs() + grid.b_ft*Im_Wij.in_pairs());
+   model.add(Flow_P_From.in(grid.arcs) == 0);
+   Flow_P_From.print_expanded();
+
+   Constraint Flow_P_To("Flow_P_To");
+   Flow_P_To = Pf_to - (grid.g_tt*W_line_ji + grid.g_tf*R_Wij.in_pairs() - grid.b_tf*Im_Wij.in_pairs());
+   model.add(Flow_P_To.in(grid.arcs) == 0);
+
+   Constraint Flow_Q_From("Flow_Q_From");
+   Flow_Q_From = Qf_from - (grid.g_ft*Im_Wij.in_pairs() - grid.b_ff*W_line_ij - grid.b_ft*R_Wij.in_pairs());
+   model.add(Flow_Q_From.in(grid.arcs) == 0);
+
+   Constraint Flow_Q_To("Flow_Q_To");
+   Flow_Q_To = Qf_to + (grid.b_tt*W_line_ji + grid.b_tf*R_Wij.in_pairs() + grid.g_tf*Im_Wij.in_pairs());
+   model.add(Flow_Q_To.in(grid.arcs) == 0);
+}
+
+void add_Thermal_onoff(Model& model, PowerNet& grid, var<Real>& Pf_from, var<Real>& Pf_to, var<Real>& Qf_from, var<Real>& Qf_to,
+                 var<Binary>& z){
+   Constraint Thermal_Limit_from("Thermal_Limit_from");
+   Thermal_Limit_from = power(Pf_from, 2) + power(Qf_from, 2);
+   Thermal_Limit_from <= power(grid.S_max,2)*z*z;
+   model.add(Thermal_Limit_from.in(grid.arcs));
+
+   Constraint Thermal_Limit_to("Thermal_Limit_to");
+   Thermal_Limit_to = power(Pf_to, 2) + power(Qf_to, 2);
+   Thermal_Limit_to <= power(grid.S_max,2)*z*z;
+   model.add(Thermal_Limit_to.in(grid.arcs));
+}
+
+/* constraints defining on/off squared voltage variables:
+ * W_line_ij = Wii if z = 1,
+ * W_line_ij = 0   if z = 0
+ */
+void add_Wline_W(Model& model, PowerNet& grid, var<Real>& W_line_ij, var<Real>& W_line_ji, var<Real>& Wii, var<Binary>& z){
+   Constraint W_line_ij_le("W_line_ij_le");
+   W_line_ij_le = W_line_ij - Wii.from();
+   W_line_ij_le += grid.w_min.from()*(1-z);
+   model.add(W_line_ij_le.in(grid.arcs) <= 0);
+   W_line_ij_le.print_expanded();
+
+   Constraint W_line_ij_ge("W_line_ij_ge");
+   W_line_ij_ge = Wii.from() - W_line_ij;
+   W_line_ij_ge -= grid.w_max.from()*(1-z);
+   model.add(W_line_ij_ge.in(grid.arcs) <= 0);
+   W_line_ij_ge.print_expanded();
+
+   Constraint W_line_ji_le("W_line_ji_le");
+   W_line_ji_le = W_line_ji - Wii.to();
+   W_line_ji_le += grid.w_min.to()*(1-z);
+   model.add(W_line_ji_le.in(grid.arcs) <= 0);
+   W_line_ji_le.print_expanded();
+
+   Constraint W_line_ji_ge("W_line_ji_ge");
+   W_line_ji_ge = Wii.to() - W_line_ji;
+   W_line_ji_ge -= grid.w_max.to()*(1-z);
+   model.add(W_line_ji_ge.in(grid.arcs) <= 0);
+}
+
+/* second-order cone constraints, on/off version */
+void add_SOC_onoff(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij, var<Real>& Wii, var<Binary>& z){
+   Constraint SOC("SOC");
+   SOC = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - Wii.from()*Wii.to();
+   model.add(SOC.in(grid.arcs) <= 0);
+
+   Constraint SOC_bis("SOC_bis");
+   SOC_bis = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - z*grid.w_max.to();
+   model.add(SOC_bis.in(grid.arcs) <= 0);
+   SOC_bis.print_expanded();
+
+   Constraint SOC_bis2("SOC_bis2");
+   SOC_bis2 = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - z*grid.w_max.from();
+   model.add(SOC_bis2.in(grid.arcs) <= 0);
+}
+
+/* on/off variable bounds of the form:
+ * x <= xub*z
+ * x >= xlb*z
+ */
+void add_onoff_bnds(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij, var<Real>& W_line_ij, var<Real>& W_line_ji, var<Binary>& z){
+   Constraint R_Wij_ub;
+   R_Wij_ub = R_Wij.in_pairs() - grid.wr_max.in_pairs()*z;
+   model.add(R_Wij_ub.in(grid.arcs) <= 0);
+
+   Constraint R_Wij_lb;
+   R_Wij_lb = R_Wij.in_pairs() - grid.wr_min.in_pairs()*z;
+   model.add(R_Wij_lb.in(grid.arcs) >= 0);
+
+   Constraint Im_Wij_ub;
+   Im_Wij_ub = Im_Wij.in_pairs() - grid.wi_max.in_pairs()*z;
+   model.add(Im_Wij_ub.in(grid.arcs) <= 0);
+
+   Constraint Im_Wij_lb;
+   Im_Wij_lb = Im_Wij.in_pairs() - grid.wi_min.in_pairs()*z;
+   model.add(Im_Wij_lb.in(grid.arcs) >= 0);
+
+   Constraint W_line_ij_ub;
+   W_line_ij_ub = W_line_ij.in_pairs() - grid.w_max.from()*z;
+   model.add(W_line_ij_ub.in(grid.arcs) <= 0);
+
+   Constraint W_line_ij_lb;
+   W_line_ij_lb = W_line_ij.in_pairs() - grid.w_min.from()*z;
+   model.add(W_line_ij_lb.in(grid.arcs) >= 0);
+
+   Constraint W_line_ji_ub;
+   W_line_ji_ub = W_line_ji.in_pairs() - grid.w_max.to()*z;
+   model.add(W_line_ji_ub.in(grid.arcs) <= 0);
+
+   Constraint W_line_ji_lb;
+   W_line_ji_lb = W_line_ji.in_pairs() - grid.w_min.to()*z;
+   model.add(W_line_ji_lb.in(grid.arcs) >= 0);
+}
+
 /* main */
 int main (int argc, char * argv[]) {
    int output = 0;
@@ -136,6 +266,7 @@ int main (int argc, char * argv[]) {
    string sdp_cuts_s = "yes";
    SolverType solv_type = ipopt;
    double tol = 1e-6;
+   double gap, solver_time_start;
    string mehrotra = "no";
    string fname = "../data_sets/Power/nesta_case5_pjm.m";
 
@@ -219,10 +350,8 @@ int main (int argc, char * argv[]) {
 
    /* Real part of Wij = ViVj */
    var<Real>  R_Wij("R_Wij", grid.wr_min, grid.wr_max);
-
    /* Imaginary part of Wij = ViVj */
    var<Real>  Im_Wij("Im_Wij", grid.wi_min, grid.wi_max);
-
    /* Magnitude of Wii = Vi^2 */
    var<Real>  Wii("Wii", grid.w_min, grid.w_max);
 
@@ -249,7 +378,7 @@ int main (int argc, char * argv[]) {
 
    /* Solver selection */
    solver SDPOPF(SDP,solv_type);
-   double solver_time_start = get_wall_time();
+   solver_time_start = get_wall_time();
 
    /* Solve the NLP */
    SDPOPF.run(output = 5, relax = false);
@@ -262,11 +391,76 @@ int main (int argc, char * argv[]) {
    }
    for(auto& node: grid.nodes) ((Bus*)node)->w = Wii(node->_name).eval();
 
-   double gap = 100*(upper_bound - SDP._obj_val)/upper_bound;
+   gap = 100*(upper_bound - SDP._obj_val)/upper_bound;
 
    /* TODO build OTS */
+
+   Model OTS("SDPOTS Model");
+
+   /* power generation variables */
+   var<Real> Pg1("Pg1", grid.pg_min, grid.pg_max);
+   var<Real> Qg1("Qg1", grid.qg_min, grid.qg_max);
+   OTS.add(Pg1.in(grid.gens));
+   OTS.add(Qg1.in(grid.gens));
+   /* power flow variables */
+   var<Real> Pf_from1("Pf_from1", grid.S_max);
+   var<Real> Qf_from1("Qf_from1", grid.S_max);
+   var<Real> Pf_to1("Pf_to1", grid.S_max);
+   var<Real> Qf_to1("Qf_to1", grid.S_max);
+   OTS.add(Pf_from1.in(grid.arcs));
+   OTS.add(Qf_from1.in(grid.arcs));
+   OTS.add(Pf_to1.in(grid.arcs));
+   OTS.add(Qf_to1.in(grid.arcs));
+
+   /* Real part of Wij = ViVj */
+   var<Real>  R_Wij1("R_Wij1", grid.wr_min, grid.wr_max);
+   /* Imaginary part of Wij = ViVj */
+   var<Real>  Im_Wij1("Im_Wij1", grid.wi_min, grid.wi_max);
+   /* Magnitude of Wii = Vi^2 */
+   var<Real>  Wii1("Wii1", grid.w_min, grid.w_max);
+   /* On/off squared voltage magnitudes */
+   var<Real>  W_line_ij("W_line_ij", 0.0, grid.w_max.from());
+   var<Real>  W_line_ji("W_line_ji", 0.0, grid.w_max.to());
+   /* Variales indicating whether a line is switched on */
+   var<Binary> z("z");
+
+   OTS.add(Wii1.in(grid.nodes));
+   OTS.add(R_Wij1.in(bus_pairs_chord));
+   OTS.add(Im_Wij1.in(bus_pairs_chord));
+   OTS.add(W_line_ij.in(grid.arcs));
+   OTS.add(W_line_ji.in(grid.arcs));
+   OTS.add(z.in(grid.arcs));
+
+   W_line_ij.print(true);
+
+   /* Initialize variables */
+   R_Wij1.initialize_all(1.0);
+   Wii1.initialize_all(1.001);
+   W_line_ij.initialize_all(1.001);
+
+   /**  Objective */
+   auto obj1 = product(grid.c1, Pg1) + product(grid.c2, power(Pg1,2)) + sum(grid.c0);
+   OTS.min(obj1.in(grid.gens));
+
+   /** Constraints */
+
+   /* TODO OTS constraints */
+   add_SOC_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1, z);
+   add_LNC(OTS, grid, R_Wij1, Im_Wij1, Wii1);
+   add_PowerFlow_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii, W_line_ij, W_line_ji, Pf_from1, Pf_to1, Qf_from1, Qf_to1, Pg1, Qg1);
+   add_Thermal_onoff(OTS, grid, Pf_from1, Pf_to1, Qf_from1, Qf_to1, z);
+   add_AngleBounds(OTS, grid, R_Wij1, Im_Wij1);
+   add_Wline_W(OTS, grid, W_line_ij, W_line_ji, Wii1, z);
+   add_onoff_bnds(OTS, grid, R_Wij, Im_Wij, W_line_ij, W_line_ji, z);
+//   add_SDP3(OTS, grid, R_Wij1, Im_Wij1, Wii1);
+
    /* TODO generate cuts at the optimal solution of the NLP */
-   /* TODO solve OTS */
+
+   /* Solver selection */
+   solver SDPOTS(OTS, gurobi);
+
+   /* Solve OTS */
+   SDPOTS.run(output = 5, relax = false);
 
    double solver_time_end = get_wall_time();
    double total_time_end = get_wall_time();
