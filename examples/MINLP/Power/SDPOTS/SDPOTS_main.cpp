@@ -209,12 +209,11 @@ void add_SOC_onoff(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im
    model.add(SOC.in(grid.arcs) <= 0);
 
    Constraint SOC_bis("SOC_bis");
-   SOC_bis = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - z*grid.w_max.to();
+   SOC_bis = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - z*Wii.from()*grid.w_max.to();
    model.add(SOC_bis.in(grid.arcs) <= 0);
-   SOC_bis.print_expanded();
 
    Constraint SOC_bis2("SOC_bis2");
-   SOC_bis2 = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - z*grid.w_max.from();
+   SOC_bis2 = power(R_Wij.in_pairs(), 2) + power(Im_Wij.in_pairs(), 2) - z*Wii.to()*grid.w_max.from();
    model.add(SOC_bis2.in(grid.arcs) <= 0);
 }
 
@@ -223,35 +222,35 @@ void add_SOC_onoff(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im
  * x >= xlb*z
  */
 void add_onoff_bnds(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij, var<Real>& W_line_ij, var<Real>& W_line_ji, var<Binary>& z){
-   Constraint R_Wij_ub;
+   Constraint R_Wij_ub("R_Wij_ub");
    R_Wij_ub = R_Wij.in_pairs() - grid.wr_max.in_pairs()*z;
    model.add(R_Wij_ub.in(grid.arcs) <= 0);
 
-   Constraint R_Wij_lb;
+   Constraint R_Wij_lb("R_Wij_lb");
    R_Wij_lb = R_Wij.in_pairs() - grid.wr_min.in_pairs()*z;
    model.add(R_Wij_lb.in(grid.arcs) >= 0);
 
-   Constraint Im_Wij_ub;
+   Constraint Im_Wij_ub("Im_Wij_ub");
    Im_Wij_ub = Im_Wij.in_pairs() - grid.wi_max.in_pairs()*z;
    model.add(Im_Wij_ub.in(grid.arcs) <= 0);
 
-   Constraint Im_Wij_lb;
+   Constraint Im_Wij_lb("Im_Wij_lb");
    Im_Wij_lb = Im_Wij.in_pairs() - grid.wi_min.in_pairs()*z;
    model.add(Im_Wij_lb.in(grid.arcs) >= 0);
 
-   Constraint W_line_ij_ub;
+   Constraint W_line_ij_ub("W_line_ij_ub");
    W_line_ij_ub = W_line_ij.in_pairs() - grid.w_max.from()*z;
    model.add(W_line_ij_ub.in(grid.arcs) <= 0);
 
-   Constraint W_line_ij_lb;
+   Constraint W_line_ij_lb("W_line_ij_lb");
    W_line_ij_lb = W_line_ij.in_pairs() - grid.w_min.from()*z;
    model.add(W_line_ij_lb.in(grid.arcs) >= 0);
 
-   Constraint W_line_ji_ub;
+   Constraint W_line_ji_ub("W_line_ji_ub");
    W_line_ji_ub = W_line_ji.in_pairs() - grid.w_max.to()*z;
    model.add(W_line_ji_ub.in(grid.arcs) <= 0);
 
-   Constraint W_line_ji_lb;
+   Constraint W_line_ji_lb("W_line_ji_lb");
    W_line_ji_lb = W_line_ji.in_pairs() - grid.w_min.to()*z;
    model.add(W_line_ji_lb.in(grid.arcs) >= 0);
 }
@@ -374,7 +373,7 @@ int main (int argc, char * argv[]) {
    add_PowerFlow(SDP, grid, R_Wij, Im_Wij, Wii, Pf_from, Pf_to, Qf_from, Qf_to, Pg, Qg);
    add_Thermal(SDP, grid, Pf_from, Pf_to, Qf_from, Qf_to);
    add_AngleBounds(SDP, grid, R_Wij, Im_Wij);
-   add_SDP3(SDP, grid, R_Wij, Im_Wij, Wii);
+//   add_SDP3(SDP, grid, R_Wij, Im_Wij, Wii);
 
    /* Solver selection */
    solver SDPOPF(SDP,solv_type);
@@ -387,7 +386,7 @@ int main (int argc, char * argv[]) {
    for(auto& arc: grid.arcs){
       ((Line*)arc)->wr = R_Wij(arc->_src->_name+","+arc->_dest->_name).eval();
       ((Line*)arc)->wi = Im_Wij(arc->_src->_name+","+arc->_dest->_name).eval();
-      if(grid.add_3d_nlin && !arc->_free) arc->_active = true;
+//      if(grid.add_3d_nlin && !arc->_free) arc->_active = true;
    }
    for(auto& node: grid.nodes) ((Bus*)node)->w = Wii(node->_name).eval();
 
@@ -422,7 +421,7 @@ int main (int argc, char * argv[]) {
    var<Real>  W_line_ij("W_line_ij", 0.0, grid.w_max.from());
    var<Real>  W_line_ji("W_line_ji", 0.0, grid.w_max.to());
    /* Variales indicating whether a line is switched on */
-   var<Binary> z("z");
+   var<Binary> z("z", 1.0, 1.0);
 
    OTS.add(Wii1.in(grid.nodes));
    OTS.add(R_Wij1.in(bus_pairs_chord));
@@ -432,11 +431,13 @@ int main (int argc, char * argv[]) {
    OTS.add(z.in(grid.arcs));
 
    W_line_ij.print(true);
+   z.print(true);
 
    /* Initialize variables */
    R_Wij1.initialize_all(1.0);
    Wii1.initialize_all(1.001);
    W_line_ij.initialize_all(1.001);
+   z.initialize_all(1);
 
    /**  Objective */
    auto obj1 = product(grid.c1, Pg1) + product(grid.c2, power(Pg1,2)) + sum(grid.c0);
@@ -447,12 +448,12 @@ int main (int argc, char * argv[]) {
    /* TODO OTS constraints */
    add_SOC_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1, z);
    add_LNC(OTS, grid, R_Wij1, Im_Wij1, Wii1);
-   add_PowerFlow_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii, W_line_ij, W_line_ji, Pf_from1, Pf_to1, Qf_from1, Qf_to1, Pg1, Qg1);
+   add_PowerFlow_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1, W_line_ij, W_line_ji, Pf_from1, Pf_to1, Qf_from1, Qf_to1, Pg1, Qg1);
    add_Thermal_onoff(OTS, grid, Pf_from1, Pf_to1, Qf_from1, Qf_to1, z);
    add_AngleBounds(OTS, grid, R_Wij1, Im_Wij1);
    add_Wline_W(OTS, grid, W_line_ij, W_line_ji, Wii1, z);
-   add_onoff_bnds(OTS, grid, R_Wij, Im_Wij, W_line_ij, W_line_ji, z);
-//   add_SDP3(OTS, grid, R_Wij1, Im_Wij1, Wii1);
+   add_onoff_bnds(OTS, grid, R_Wij1, Im_Wij1, W_line_ij, W_line_ji, z);
+//   add_SDP_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1);
 
    /* TODO generate cuts at the optimal solution of the NLP */
 
@@ -461,6 +462,13 @@ int main (int argc, char * argv[]) {
 
    /* Solve OTS */
    SDPOTS.run(output = 5, relax = false);
+
+   for(auto& arc: grid.arcs){
+      cout << "\nz(" << arc->_name << ") = " << z(arc->_name).eval();
+      cout << "\nw_line_ij(" << arc->_name << ") = " << W_line_ij(arc->_name).eval();
+      cout << "\nR_Wij(" << arc->_name << ") = " << R_Wij1(arc->_src->_name+","+arc->_dest->_name).eval();
+      cout << "\nIm_Wij(" << arc->_name << ") = " << Im_Wij1(arc->_src->_name+","+arc->_dest->_name).eval();
+   }
 
    double solver_time_end = get_wall_time();
    double total_time_end = get_wall_time();
