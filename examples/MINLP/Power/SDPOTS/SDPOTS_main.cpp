@@ -125,7 +125,7 @@ void add_SDP3(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij,
    model.add(SDP3 >= 0);
 
    DebugOn("\nsdp 3d nb inst = " << SDP3.get_nb_instances() << endl);
-   //        SDP3.print_expanded();
+   SDP3.print_expanded();
 }
 
 /* OTS constraints */
@@ -182,19 +182,19 @@ void add_Wline_W(Model& model, PowerNet& grid, var<Real>& W_line_ij, var<Real>& 
    W_line_ij_le = W_line_ij - Wii.from();
    W_line_ij_le += grid.w_min.from()*(1-z);
    model.add(W_line_ij_le.in(grid.arcs) <= 0);
-   W_line_ij_le.print_expanded();
+//   W_line_ij_le.print_expanded();
 
    Constraint W_line_ij_ge("W_line_ij_ge");
    W_line_ij_ge = Wii.from() - W_line_ij;
    W_line_ij_ge -= grid.w_max.from()*(1-z);
    model.add(W_line_ij_ge.in(grid.arcs) <= 0);
-   W_line_ij_ge.print_expanded();
+//   W_line_ij_ge.print_expanded();
 
    Constraint W_line_ji_le("W_line_ji_le");
    W_line_ji_le = W_line_ji - Wii.to();
    W_line_ji_le += grid.w_min.to()*(1-z);
    model.add(W_line_ji_le.in(grid.arcs) <= 0);
-   W_line_ji_le.print_expanded();
+//   W_line_ji_le.print_expanded();
 
    Constraint W_line_ji_ge("W_line_ji_ge");
    W_line_ji_ge = Wii.to() - W_line_ji;
@@ -253,6 +253,82 @@ void add_onoff_bnds(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& I
    Constraint W_line_ji_lb("W_line_ji_lb");
    W_line_ji_lb = W_line_ji.in_pairs() - grid.w_min.to()*z;
    model.add(W_line_ji_lb.in(grid.arcs) >= 0);
+}
+
+/* on/off SDP cuts
+ */
+void add_SDP_onoff(Model& model, PowerNet& grid, var<Real>& R_Wij, var<Real>& Im_Wij, var<Real>& Wii, var<Binary>& z){
+   Line *a12, *a13, *a23;
+   Bus *n1, *n2, *n3;
+   double wr12, wi12, wr13, wi13, wr23, wi23;
+   double w1, w2, w3;
+   double SDP;
+   double tol;
+
+   auto bags = grid._bags;
+   tol = 1e-01;
+
+   DebugOn("Adding 3d determinant linear on/off cuts\n");
+//   auto R_Wij_ = R_Wij.pairs_in_directed(grid, bags_copy, 3);
+//   auto Im_Wij_ = Im_Wij.pairs_in_directed(grid, bags_copy, 3);
+//   auto Wii_ = Wii.in_bags(bags_copy, 3);
+
+//   Constraint SDP3("SDP_3D");
+//   SDP3 = 2 * R_Wij_[0] * (R_Wij_[1] * R_Wij_[2] + Im_Wij_[1] * Im_Wij_[2]);
+//   SDP3 -= 2 * Im_Wij_[0] * (R_Wij_[2] * Im_Wij_[1] - Im_Wij_[2] * R_Wij_[1]);
+//   SDP3 -= (power(R_Wij_[0], 2) + power(Im_Wij_[0], 2)) * Wii_[2];
+//   SDP3 -= (power(R_Wij_[1], 2) + power(Im_Wij_[1], 2)) * Wii_[0];
+//   SDP3 -= (power(R_Wij_[2], 2) + power(Im_Wij_[2], 2)) * Wii_[1];
+//   SDP3 += Wii_[0] * Wii_[1] * Wii_[2];
+//   model.add(SDP3 >= 0);
+
+   // solution of SDPOPF is saved in grid
+   // check which SDP constraints are active, generate cuts for them
+
+   for(auto& b: bags){
+      Constraint sdp_cut("sdp_cut"); /*todo add index to name*/
+      assert(b.size() == 3);
+
+      /* get the nodes and lines of a bag */
+      n1 = (Bus*)grid.get_node(b[0]->_name);
+      n2 = (Bus*)grid.get_node(b[1]->_name);
+      n3 = (Bus*)grid.get_node(b[2]->_name);
+      a12 = (Line*)grid.get_arc(n1,n2);
+      a13 = (Line*)grid.get_arc(n1,n3);
+      a23 = (Line*)grid.get_arc(n2,n3);
+
+      /* get the values at the current solution */
+      w1 = n1->w; w2 = n2->w; w3 = n3->w;
+      wr12 = a12->wr; wr13 = a13->wr; wr23 = a23->wr;
+
+      /* evaluate the violation of the SDP condition */
+      SDP = wr12*(wr23*wr13 + wi23*wi13) + wi12*(-wi23*wr13 + wr23*wi13);
+      SDP *= 2;
+      SDP -= (wr12*wr12 + wi12*wi12)*w3 + (wr13*wr13 + wi13*wi13)*w2 + (wr23*wr23 + wi23*wi23)*w1;
+      SDP += w1*w2*w3;
+      DebugOn("\nSDP = " << SDP);
+
+      if( SDP <= tol ) DebugOn("\nconstraint is active, will add the cut");
+      else{
+         DebugOn("\nconstraint is not active");
+         continue;
+      }
+
+      /* generate the cut SDP(x0) + SDP'(x0)(x-x0) >= 0 */
+      sdp_cut = (2*wr23*wr13 + 2*wi23*wi13 - 2*wr12*w3)*(R_Wij(n1->_name+","+n2->_name) - wr12);
+      sdp_cut += (2*wr12*wr13 + 2*wi12*wi13 - 2*wr23*w1)*(R_Wij(n2->_name+","+n3->_name) - wr23);
+      sdp_cut += (2*wr12*wr23 - 2*wi12*wi23 - 2*wr12*w2)*(R_Wij(n1->_name+","+n3->_name) - wr13);
+      sdp_cut += (2*wr23*wi13 - 2*wi23*wr12 - 2*wi12*w3)*(Im_Wij(n1->_name+","+n2->_name) - wi12);
+      sdp_cut += (2*wr12*wi13 - 2*wi23*wr13 - 2*wi23*w1)*(Im_Wij(n2->_name+","+n3->_name) - wi23);
+      sdp_cut += (2*wr12*wi23 + 2*wi12*wr23 - 2*wi13*w2)*(Im_Wij(n1->_name+","+n3->_name) - wi13);
+      sdp_cut -= (wr23*wr23 + wi23*wi23)*(Wii(n1->_name) - w1);
+      sdp_cut -= (wr13*wr13 + wi13*wi13)*(Wii(n2->_name) - w2);
+      sdp_cut -= (wr12*wr12 + wi12*wi12)*(Wii(n3->_name) - w3);
+      sdp_cut += SDP;
+      model.add(sdp_cut >= 0);
+      /* TODO use proper indexing, call add once */
+   }
+
 }
 
 /* main */
@@ -373,7 +449,7 @@ int main (int argc, char * argv[]) {
    add_PowerFlow(SDP, grid, R_Wij, Im_Wij, Wii, Pf_from, Pf_to, Qf_from, Qf_to, Pg, Qg);
    add_Thermal(SDP, grid, Pf_from, Pf_to, Qf_from, Qf_to);
    add_AngleBounds(SDP, grid, R_Wij, Im_Wij);
-//   add_SDP3(SDP, grid, R_Wij, Im_Wij, Wii);
+   add_SDP3(SDP, grid, R_Wij, Im_Wij, Wii);
 
    /* Solver selection */
    solver SDPOPF(SDP,solv_type);
@@ -392,7 +468,7 @@ int main (int argc, char * argv[]) {
 
    gap = 100*(upper_bound - SDP._obj_val)/upper_bound;
 
-   /* TODO build OTS */
+   /* build OTS */
 
    Model OTS("SDPOTS Model");
 
@@ -412,7 +488,7 @@ int main (int argc, char * argv[]) {
    OTS.add(Qf_to1.in(grid.arcs));
 
    /* Real part of Wij = ViVj */
-   var<Real>  R_Wij1("R_Wij1", grid.wr_min, grid.wr_max);
+   var<Real>  R_Wij1("R_Wij1", 0.0, grid.wr_max);
    /* Imaginary part of Wij = ViVj */
    var<Real>  Im_Wij1("Im_Wij1", grid.wi_min, grid.wi_max);
    /* Magnitude of Wii = Vi^2 */
@@ -421,7 +497,7 @@ int main (int argc, char * argv[]) {
    var<Real>  W_line_ij("W_line_ij", 0.0, grid.w_max.from());
    var<Real>  W_line_ji("W_line_ji", 0.0, grid.w_max.to());
    /* Variales indicating whether a line is switched on */
-   var<Binary> z("z", 1.0, 1.0);
+   var<Binary> z("z");
 
    OTS.add(Wii1.in(grid.nodes));
    OTS.add(R_Wij1.in(bus_pairs_chord));
@@ -433,27 +509,20 @@ int main (int argc, char * argv[]) {
    W_line_ij.print(true);
    z.print(true);
 
-   /* Initialize variables */
-   R_Wij1.initialize_all(1.0);
-   Wii1.initialize_all(1.001);
-   W_line_ij.initialize_all(1.001);
-   z.initialize_all(1);
-
    /**  Objective */
    auto obj1 = product(grid.c1, Pg1) + product(grid.c2, power(Pg1,2)) + sum(grid.c0);
    OTS.min(obj1.in(grid.gens));
 
-   /** Constraints */
+   /** OTS constraints */
 
-   /* TODO OTS constraints */
    add_SOC_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1, z);
-   add_LNC(OTS, grid, R_Wij1, Im_Wij1, Wii1);
+//   add_LNC(OTS, grid, R_Wij1, Im_Wij1, Wii1);
    add_PowerFlow_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1, W_line_ij, W_line_ji, Pf_from1, Pf_to1, Qf_from1, Qf_to1, Pg1, Qg1);
    add_Thermal_onoff(OTS, grid, Pf_from1, Pf_to1, Qf_from1, Qf_to1, z);
    add_AngleBounds(OTS, grid, R_Wij1, Im_Wij1);
    add_Wline_W(OTS, grid, W_line_ij, W_line_ji, Wii1, z);
    add_onoff_bnds(OTS, grid, R_Wij1, Im_Wij1, W_line_ij, W_line_ji, z);
-//   add_SDP_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1);
+   add_SDP_onoff(OTS, grid, R_Wij1, Im_Wij1, Wii1, z);
 
    /* TODO generate cuts at the optimal solution of the NLP */
 
@@ -464,10 +533,12 @@ int main (int argc, char * argv[]) {
    SDPOTS.run(output = 5, relax = false);
 
    for(auto& arc: grid.arcs){
+      if (!arc->_active)
+         continue;
       cout << "\nz(" << arc->_name << ") = " << z(arc->_name).eval();
-      cout << "\nw_line_ij(" << arc->_name << ") = " << W_line_ij(arc->_name).eval();
-      cout << "\nR_Wij(" << arc->_name << ") = " << R_Wij1(arc->_src->_name+","+arc->_dest->_name).eval();
-      cout << "\nIm_Wij(" << arc->_name << ") = " << Im_Wij1(arc->_src->_name+","+arc->_dest->_name).eval();
+//      cout << "\nw_line_ij(" << arc->_name << ") = " << W_line_ij(arc->_name).eval();
+//      cout << "\nR_Wij(" << arc->_name << ") = " << R_Wij1(arc->_src->_name+","+arc->_dest->_name).eval();
+//      cout << "\nIm_Wij(" << arc->_name << ") = " << Im_Wij1(arc->_src->_name+","+arc->_dest->_name).eval();
    }
 
    double solver_time_end = get_wall_time();
@@ -479,6 +550,7 @@ int main (int argc, char * argv[]) {
    DebugOn("Final Gap = " << to_string(gap) << "%."<<endl);
    DebugOn("Upper bound = " << to_string(upper_bound) << "."<<endl);
    DebugOn("Lower bound = " << to_string(SDP._obj_val) << "."<<endl);
-   DebugOn("\nResults: " << grid._name << " " << to_string(SDP._obj_val) << " " << to_string(total_time)<<endl);
+   DebugOn("\nResults for OPF: " << grid._name << " " << to_string(SDP._obj_val) << " " << to_string(total_time)<<endl);
+   DebugOn("\nResults for OTS: " << grid._name << " " << to_string(OTS._obj_val) << " " << to_string(total_time)<<endl);
    return 0;
 }
