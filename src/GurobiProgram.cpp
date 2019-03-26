@@ -203,11 +203,12 @@ void GurobiProgram::create_grb_constraints(){
     double coeff;    
     for(auto& p: _model->_cons){
         auto c = p.second;
+
         if (!c->_new && c->_all_satisfied) {
             continue;
         }
         c->_new = false;
-        if (c->is_nonlinear()) {
+        if (c->is_nonlinear() || c->is_polynomial()) {
             throw invalid_argument("Gurobi cannot handle nonlinear constraints that are not convex quadratic.\n");
         }
         switch(c->get_type()) {
